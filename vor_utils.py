@@ -78,7 +78,7 @@ def plot(vor, points, path, start, show, save, name):
     x = [p[0] for p in path]
     y = [p[1] for p in path]
     plt.plot(x, y, 'bo')
-    plt.plot([start[0], 0], [start[1], 10], 'go')
+    plt.plot([start[0], start[1]], [start[1], 100], 'go')
     if show:
         plt.show()
     if save:

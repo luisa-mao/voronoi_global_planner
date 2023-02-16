@@ -35,8 +35,6 @@ class ScanToGoal:
     def scan_odom_callback(self, scan_msg, odom_msg):
         print("scan odom callback")
 
-        # if scan_msg.header.seq != 211:
-        #     return
 
         # TODO: Implement scan-to-goal conversion based on the scan and odom data
         # You can access the scan data with scan_msg.ranges and the odom data with odom_msg.pose.pose
@@ -45,15 +43,15 @@ class ScanToGoal:
         yaw = get_yaw(odom_msg)
         shift_x = odom_msg.pose.pose.position.x
         shift_y = odom_msg.pose.pose.position.y
-        start = (shift_x, shift_y)
-        goal = (0,10)
+        start = (shift_x * 10 , shift_y * 10)
+        goal = (0,100)
         # print(start)
 
         angle_min = scan_msg.angle_min
         increment = scan_msg.angle_increment
         ranges = scan_msg.ranges
 
-        clearance = 0.7
+        clearance = 0.7 * 10
 
         points = ranges_to_coordinates(ranges, angle_min + yaw, increment)
 
@@ -61,6 +59,8 @@ class ScanToGoal:
             x, y = points[i]
             x += shift_x
             y += shift_y
+            x = x * 10 // 1
+            y = y * 10 // 1
             points[i] = (x, y)
 
         self.points += points

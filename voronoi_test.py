@@ -43,6 +43,8 @@ for i in range(len(points)):
     x, y = points[i]
     x += px
     y += py
+    x  = (x*10+.5) //1
+    y = (y*10+.5) //1
     points[i] = (x, y)
 
 vor = Voronoi(points, incremental=True)
@@ -64,7 +66,7 @@ for i in range(len(ridge_points)):
     
     pair = ridge_points[i]
 
-    if math.dist(points[pair[0]], points[pair[1]]) > 0.7:
+    if math.dist(points[pair[0]], points[pair[1]]) > 0.7*10:
         edge = edges[i]
         if (edge[0]==-1 or edge[1]==-1):
             continue
@@ -85,7 +87,7 @@ for i in range(len(ridge_points)):
 
 
 start = (0, 0)
-goal = (0, 10)
+goal = (0, 100)
 
 min_start = goal
 min_goal = start
@@ -109,5 +111,5 @@ path = astar(start, goal, map)
 x = [p[0] for p in path]
 y = [p[1] for p in path]
 plt.plot(x, y, 'bo')
-plt.plot([0, 0], [0, 10], 'go')
+plt.plot([start[0], goal[0]], [start[1], goal[1]], 'go')
 plt.show()
