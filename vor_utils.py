@@ -61,10 +61,18 @@ def get_edge_map(vor, points, clearance, start, goal):
     for key in map.keys():
         if (math.dist(start, key)<math.dist(start,min_start)):
             min_start = key
-        if (key[1]>=55):
-            min_goal = key
-            map[key].append(goal)
     map[start] = [min_start]
+    
+    pts = vor.regions[vor.point_region[0]]
+    print(vor.points[0])
+    for p in pts:
+        if p == -1:
+            continue
+        pt = (vertices[p][0], vertices[p][1])
+        # print(pt)
+        if map.get(pt) != None:
+            # print("appended")
+            map[pt].append(goal)
         
     return map
 

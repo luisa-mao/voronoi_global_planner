@@ -21,4 +21,4 @@ for filename in image_files:
 
 # Save the images as an animated GIF
 gif_path = 'world_1.gif'
-images[0].save(gif_path, save_all=True, append_images=images[1:], duration=300, loop=0)
+images[0].save(gif_path, save_all=True, append_images=images[1:], duration=100, loop=0)

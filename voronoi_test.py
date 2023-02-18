@@ -47,61 +47,24 @@ for i in range(len(points)):
     y = round(y * 10 /2) *2
     points[i] = (x, y)
 
-points1 = [(-100,100),(-100,-102),(103,-100)]
+points1 = [(0,100),(-50,-10),(-40,-10), (50,-10)]
 vor = Voronoi(points1, incremental = True)
 vor.add_points(points)
-points+=points1
+points1+=points
+points = points1
 
 fig = voronoi_plot_2d(vor)
 # plt.show()
-
-map = {}
-ridge_points = vor.ridge_points
-edges = vor.ridge_vertices
-vertices = vor.vertices
-
-# # print(len(edges))
-# # print(len(ridge_points))
-# print(vertices)
-
-
-
-for i in range(len(ridge_points)):
-    
-    pair = ridge_points[i]
-
-    if math.dist(points[pair[0]], points[pair[1]]) > 0.7*10:
-        edge = edges[i]
-        if (edge[0]==-1 or edge[1]==-1):
-            continue
-
-        node = (vertices[edge[0]][0], vertices[edge[0]][1])
-        other = (vertices[edge[1]][0], vertices[edge[1]][1])
-        if (map.get(node) == None):
-            map[node] = [other]
-        else:
-            map[node].append(other)
-
-        if (map.get(other) == None):
-            map[other] = [node]
-        else:
-            map[other].append(node)
 
 
 
 
 start = (0, 0)
 goal = (0, 100)
+map = get_edge_map(vor, points, 7, start, goal)
+for p in vor.regions[vor.point_region[0]]:
+    print(p, vor.vertices[p][0], vor.vertices[p][1])
 
-min_start = goal
-min_goal = start
-for key in map.keys():
-    if (math.dist(start, key)<math.dist(start,min_start)):
-        min_start = key
-    elif (math.dist(goal, key)<math.dist(goal,min_goal)):
-        min_goal = key
-map[start] = [min_start]
-map[min_goal].append(goal)
 # print(map)
 # for e in edges:
 #     print(vertices[e[0]], vertices[e[1]])
@@ -110,12 +73,12 @@ rx = [p[0] for p in points]
 ry = [p[1] for p in points]
 plt.plot(rx, ry, 'ko')
 
-# path = astar(start, goal, map)
-# # print(path)
-# x = [p[0] for p in path]
-# y = [p[1] for p in path]
-# plt.plot(x, y, 'bo')
+path = astar(start, goal, map)
+print(path)
+x = [p[0] for p in path]
+y = [p[1] for p in path]
+plt.plot(x, y, 'bo')
 plt.plot([start[0], goal[0]], [start[1], goal[1]], 'go')
 plt.axis([-50, 50, -30, 110])
-plt.savefig("test2.png")
-# plt.show()
+# plt.savefig("test2.png")
+plt.show()

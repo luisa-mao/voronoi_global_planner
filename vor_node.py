@@ -26,6 +26,7 @@ class ScanToGoal:
         rospy.init_node('scan_to_goal')
         self.count = 0
         self.points = []
+
         self.clearance = 10
         self.images = []
         self.vor = []
@@ -79,14 +80,15 @@ class ScanToGoal:
             x, y = points[i]
             x += shift_x
             y += shift_y
-            x *= 10
-            y *= 10
-            # x = round(x  * 10 / 2) *2
-            # y = round(y * 10 /2) *2
+            # x *= 10
+            # y *= 10
+            x = round(x  * 10 / 2) *2
+            y = round(y * 10 /2) *2
             points[i] = (x, y)
 
         self.points += points
         self.points = list(set(self.points))
+        self.points.insert(0,(0,100))
         vor = Voronoi(self.points)
         # fig = voronoi_plot_2d(vor)
         path = None
