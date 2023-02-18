@@ -37,17 +37,21 @@ ranges = [2.833653211593628, 2.8102400302886963, 2.7975316047668457, 2.793277978
 #     point = [random.uniform(0, 10), random.uniform(0, 10)]
 #     points.append(point)
 
-points = ranges_to_coordinates(ranges, angle_min+yaw, angle_increment)
+points = ranges_to_coordinates(ranges, angle_min + yaw, angle_increment)
 
 for i in range(len(points)):
     x, y = points[i]
-    x += px
-    y += py
-    x  = (x*10+.5) //1
-    y = (y*10+.5) //1
+    # x += shift_x
+    # y += shift_y
+    x = round(x  * 10 / 2) *2
+    y = round(y * 10 /2) *2
     points[i] = (x, y)
 
-vor = Voronoi(points, incremental=True)
+points1 = [(-100,100),(-100,-102),(103,-100)]
+vor = Voronoi(points1, incremental = True)
+vor.add_points(points)
+points+=points1
+
 fig = voronoi_plot_2d(vor)
 # plt.show()
 
@@ -106,10 +110,12 @@ rx = [p[0] for p in points]
 ry = [p[1] for p in points]
 plt.plot(rx, ry, 'ko')
 
-path = astar(start, goal, map)
-# print(path)
-x = [p[0] for p in path]
-y = [p[1] for p in path]
-plt.plot(x, y, 'bo')
+# path = astar(start, goal, map)
+# # print(path)
+# x = [p[0] for p in path]
+# y = [p[1] for p in path]
+# plt.plot(x, y, 'bo')
 plt.plot([start[0], goal[0]], [start[1], goal[1]], 'go')
-plt.show()
+plt.axis([-50, 50, -30, 110])
+plt.savefig("test2.png")
+# plt.show()

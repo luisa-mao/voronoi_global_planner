@@ -61,30 +61,38 @@ def get_edge_map(vor, points, clearance, start, goal):
     for key in map.keys():
         if (math.dist(start, key)<math.dist(start,min_start)):
             min_start = key
-        elif (math.dist(goal, key)<math.dist(goal,min_goal)):
+        if (key[1]>=55):
             min_goal = key
+            map[key].append(goal)
     map[start] = [min_start]
-    map[min_goal].append(goal)
         
     return map
 
 def plot(vor, points, path, start, show, save, name):
     fig = voronoi_plot_2d(vor)
+    plt.axis([-50, 50, -30, 70])
+
     rx = [p[0] for p in points]
     ry = [p[1] for p in points]
     plt.plot(rx, ry, 'ko')
 
-    # print(path)
+    print(len(path), start)
     x = [p[0] for p in path]
     y = [p[1] for p in path]
     plt.plot(x, y, 'bo')
-    plt.plot([start[0], start[1]], [start[1], 100], 'go')
+    plt.plot([start[0], 0], [start[1], 100], 'go')
     if show:
         plt.show()
     if save:
         print("saved in "+ name)
         plt.savefig(name)
-    plt.close()
+        plt.close('all')
+
+def save_images(vor_list, points_list, path_list, start_list):
+    for i in range(len(vor_list)):
+        name = "gif_images/"+str(i)
+        plot(vor_list[i], points_list[i], path_list[i], start_list[i], False, True, name)
+
 
 def astar(start, goal, edges):
     # initialize the open and closed sets
