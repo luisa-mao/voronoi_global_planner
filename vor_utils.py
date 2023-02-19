@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import rospy
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
+import scipy.interpolate as interpolate
+
 
 def get_yaw(odom_msg):
     # Extract the yaw angle from the orientation quaternion
@@ -59,12 +61,6 @@ def get_edge_map(vor, points, clearance, start, goal):
                 map[other] = [node]
             else:
                 map[other].append(node)
-    min_start = goal
-    min_goal = start
-    for key in map.keys():
-        if (math.dist(start, key)<math.dist(start,min_start)):
-            min_start = key
-    map[start] = [min_start]
     
     pts = vor.regions[vor.point_region[0]]
     print(vor.points[0])
@@ -76,6 +72,17 @@ def get_edge_map(vor, points, clearance, start, goal):
         if map.get(pt) != None:
             # print("appended")
             map[pt].append(goal)
+    
+    pts = vor.regions[vor.point_region[1]]
+    map[start] = []
+    for p in pts:
+        if p == -1:
+            continue
+        pt = (vertices[p][0], vertices[p][1])
+        # print(pt)
+        map[start].append(pt)
+
+
         
     return map
 
@@ -143,7 +150,7 @@ def astar(start, goal, edges, old_path):
         # add the current node to the closed set
         closed_set.add(current)
         # explore the neighbors of the current node
-        for neighbor in edges[current]:
+        for neighbor in edges.get(current, []):
             # check if the neighbor is already in the closed set
             if neighbor in closed_set:
                 continue
@@ -155,7 +162,7 @@ def astar(start, goal, edges, old_path):
                 g[neighbor] = tentative_g
                 f[neighbor] = tentative_g + heuristic(neighbor, goal)
                 if old_path != None:
-                    f[neighbor] += distance_to_nearest_point(neighbor, old_path)
+                    f[neighbor] += distance_to_nearest_point(neighbor, old_path)*2
                 # update the path dictionary
                 came_from[neighbor] = current
                 # add the neighbor to the open set
@@ -183,3 +190,17 @@ def distance_to_nearest_point(point, point_list):
     distances = np.sum(np.abs(point_array - point_list_array), axis=1)
     min_distance = np.min(distances)
     return min_distance
+
+
+def smooth_curve(points):
+    x = [p[0] for p in points]
+    y = [p[1] for p in points]
+    tck, u = interpolate.splprep([x, y])
+
+    x_i, y_i = interpolate.splev(np.linspace(0, 1, 100), tck)
+    path = [(x_i[i], y_i[i]) for i in range(len(x_i))]
+
+    # plt.plot(x_i, y_i, 'r')
+
+
+    return path

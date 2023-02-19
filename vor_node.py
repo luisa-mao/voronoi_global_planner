@@ -105,14 +105,14 @@ class ScanToGoal:
 
         self.points += points
         self.points = list(set(self.points))
-        self.points.insert(0,(0,100))
-        vor = Voronoi(self.points)
+        tmp_points = [(0,100), start] + self.points
+        vor = Voronoi(tmp_points)
 
-        map = get_edge_map(vor, self.points, self.clearance, start, goal)
+        map = get_edge_map(vor, tmp_points, self.clearance, start, goal)
         # can change this so that luisa_path is not none at first, so don't
         # need if statement in astar function
         self.path = astar(start, goal, map, self.path)
-        if self.clearance == 3:
+        if self.clearance == 2.5:
             print("no feasible path")
             return
         if self.path == None:
@@ -127,9 +127,10 @@ class ScanToGoal:
         self.points_list.append(self.points)
         self.starts.append(start)
         self.paths.append(self.path.copy())
+        print("path length ", len(self.path))
 
 
-        luisa_path = create_ros_path(self.path)
+        luisa_path = create_ros_path(smooth_curve(self.path))
         
         # Publish the goal message
         self.path_pub.publish(luisa_path)

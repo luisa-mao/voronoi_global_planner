@@ -5,6 +5,8 @@ import math
 import heapq
 import matplotlib.pyplot as plt
 from vor_utils import *
+from scipy.interpolate import UnivariateSpline
+import scipy.interpolate as interpolate
 
 # pose: 
 #   pose: 
@@ -47,7 +49,7 @@ for i in range(len(points)):
     y = round(y * 10 /2) *2
     points[i] = (x, y)
 
-points1 = [(0,100),(-50,-10),(-40,-10), (50,-10)]
+points1 = [(0,100), (0,0), (-50,-10),(-40,-10), (50,-10)]
 vor = Voronoi(points1, incremental = True)
 vor.add_points(points)
 points1+=points
@@ -69,15 +71,23 @@ for p in vor.regions[vor.point_region[0]]:
 # for e in edges:
 #     print(vertices[e[0]], vertices[e[1]])
 
+
 rx = [p[0] for p in points]
 ry = [p[1] for p in points]
 plt.plot(rx, ry, 'ko')
+path = astar(start, goal, map, None)
 
-path = astar(start, goal, map)
 print(path)
 x = [p[0] for p in path]
 y = [p[1] for p in path]
 plt.plot(x, y, 'bo')
+
+tck, u = interpolate.splprep([x, y])
+x_i, y_i = interpolate.splev(np.linspace(0, 1, 100), tck)
+
+plt.plot(x_i, y_i, 'r')
+
+
 plt.plot([start[0], goal[0]], [start[1], goal[1]], 'go')
 plt.axis([-50, 50, -30, 110])
 # plt.savefig("test2.png")
