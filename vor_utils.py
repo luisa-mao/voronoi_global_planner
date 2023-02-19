@@ -4,6 +4,9 @@ import random
 import math
 import heapq
 import matplotlib.pyplot as plt
+import rospy
+from nav_msgs.msg import Path
+from geometry_msgs.msg import PoseStamped
 
 def get_yaw(odom_msg):
     # Extract the yaw angle from the orientation quaternion
@@ -101,8 +104,27 @@ def save_images(vor_list, points_list, path_list, start_list):
         name = "gif_images/"+str(i)
         plot(vor_list[i], points_list[i], path_list[i], start_list[i], False, True, name)
 
+def create_ros_path(coords):
+    path = Path()
+    path.header.frame_id = 'odom'  # Set the frame ID for the path
 
-def astar(start, goal, edges):
+    # Loop through the coordinates and add each one to the path as a PoseStamped message
+    for coord in coords:
+        pose = PoseStamped()
+        pose.header.frame_id = 'odom'  # Set the frame ID for the pose
+        pose.pose.position.x = coord[0]/10  # Set the x coordinate
+        pose.pose.position.y = coord[1]/10  # Set the y coordinate
+        pose.pose.position.z = 0.0  # Set the z coordinate to zero
+        pose.pose.orientation.x = 0.0  # Set the orientation to zero
+        pose.pose.orientation.y = 0.0
+        pose.pose.orientation.z = 0.0
+        pose.pose.orientation.w = 1.0
+        path.poses.append(pose)
+
+    return path
+
+
+def astar(start, goal, edges, old_path):
     # initialize the open and closed sets
     open_set = [(0, start)]
     closed_set = set()
@@ -132,6 +154,8 @@ def astar(start, goal, edges):
                 # update the g and f scores for the neighbor
                 g[neighbor] = tentative_g
                 f[neighbor] = tentative_g + heuristic(neighbor, goal)
+                if old_path != None:
+                    f[neighbor] += distance_to_nearest_point(neighbor, old_path)
                 # update the path dictionary
                 came_from[neighbor] = current
                 # add the neighbor to the open set
@@ -152,3 +176,10 @@ def heuristic(node, goal):
 def manhattan_distance(node1, node2):
     # calculate the Manhattan distance between two nodes
     return abs(node1[0] - node2[0]) + abs(node1[1] - node2[1])
+
+def distance_to_nearest_point(point, point_list):
+    point_array = np.array(point)
+    point_list_array = np.array(point_list)
+    distances = np.sum(np.abs(point_array - point_list_array), axis=1)
+    min_distance = np.min(distances)
+    return min_distance

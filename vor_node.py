@@ -6,14 +6,11 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from scipy.spatial import Voronoi, voronoi_plot_2d
-import numpy as np
-import random
-import math
-import heapq
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot as plt
-import time
+import tf2_ros
+import tf2_geometry_msgs
 from vor_utils import *
 
 
@@ -33,24 +30,42 @@ class ScanToGoal:
         self.paths = []
         self.points_list = []
         self.starts = []
+        self.path = None
 
 
         # Create subscribers and publishers
         scan_sub = Subscriber('/front/scan', LaserScan)
         odom_sub = Subscriber('/enml_odometry', Odometry) # enml odom is frame odom
-        self.goal_pub = rospy.Publisher('/move_base_simple/localgoal', PoseStamped, queue_size=1)
+        self.path_pub = rospy.Publisher('/luisa_path', Path, queue_size=1)
 
         # Synchronize the scan and odom messages
         ts = ApproximateTimeSynchronizer([scan_sub, odom_sub], queue_size=1, slop=0.1)
         ts.registerCallback(self.scan_odom_callback)
 
-        rospy.on_shutdown(self.save_data_invocation)
+        # Create a buffer object to store the transform data
+        self.tf_buffer = tf2_ros.Buffer()
+
+        # Create a transform listener object to receive the transform data
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+
+
+        # rospy.on_shutdown(self.save_data_invocation)
 
         rospy.spin()
 
     def scan_odom_callback(self, scan_msg, odom_msg):
         print("scan odom callback")
+        # print(scan_msg.header)
 
+        try:
+        # Lookup the transform from base_link to odom
+            trans = self.tf_buffer.lookup_transform( scan_msg.header.frame_id, 'base_link', rospy.Time())
+            # Transform the laser message from base_link to odom frame
+            # scan_msg = tf2_geometry_msgs.do_transform_laser_scan(scan_msg, trans)
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
+            # Handle the exception appropriately
+            rospy.logerr(f"Failed to transform laser scan to base_link frame: {e}")
+            return
 
         # TODO: Implement scan-to-goal conversion based on the scan and odom data
         # You can access the scan data with scan_msg.ranges and the odom data with odom_msg.pose.pose
@@ -78,10 +93,12 @@ class ScanToGoal:
 
         for i in range(len(points)):
             x, y = points[i]
-            x += shift_x
-            y += shift_y
+            # x += shift_x
+            # y += shift_y
             # x *= 10
             # y *= 10
+            x += trans.transform.translation.x + shift_x
+            y += trans.transform.translation.y + shift_y
             x = round(x  * 10 / 2) *2
             y = round(y * 10 /2) *2
             points[i] = (x, y)
@@ -90,36 +107,32 @@ class ScanToGoal:
         self.points = list(set(self.points))
         self.points.insert(0,(0,100))
         vor = Voronoi(self.points)
-        # fig = voronoi_plot_2d(vor)
-        path = None
+
         map = get_edge_map(vor, self.points, self.clearance, start, goal)
-        path = astar(start, goal, map)
-        if self.clearance == 4:
+        # can change this so that luisa_path is not none at first, so don't
+        # need if statement in astar function
+        self.path = astar(start, goal, map, self.path)
+        if self.clearance == 3:
             print("no feasible path")
             return
-        if path == None:
+        if self.path == None:
             self.clearance -= 0.5
             print("decreased clearance ", self.clearance)
             return
 
-        # name = "gif_images/" + str(self.count) + ".png"
 
 
         # make a gif
         self.vor.append(vor)
         self.points_list.append(self.points)
         self.starts.append(start)
-        self.paths.append(path)
+        self.paths.append(self.path.copy())
 
 
-        # self.images.append(plot(vor, self.points, path, start, False))
-        
-        # Create a new goal PoseStamped message and fill in its fields
-        # goal_msg = PoseStamped()
-        # TODO: Fill in the fields of goal_msg based on the scan and odom data
+        luisa_path = create_ros_path(self.path)
         
         # Publish the goal message
-        # self.goal_pub.publish(goal_msg)
+        self.path_pub.publish(luisa_path)
     def save_data(self):
         for i in range(len(self.vor)):
             name = "gif_images/"+str(i)
