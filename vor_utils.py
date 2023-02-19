@@ -34,33 +34,35 @@ def ranges_to_coordinates(ranges, angle_min, angle_increment):
             coords.append((x, y))
     return coords
 
-def get_edge_map(vor, points, clearance, start, goal):
+def get_edge_map(vor, start, goal):
 
     map = {}
     ridge_points = vor.ridge_points
     edges = vor.ridge_vertices
     vertices = vor.vertices
+    points = vor.points
 
     for i in range(len(ridge_points)):
         
         pair = ridge_points[i]
 
-        if math.dist(points[pair[0]], points[pair[1]]) > clearance:
-            edge = edges[i]
-            if (edge[0]==-1 or edge[1]==-1):
-                continue
+        gap = math.dist(points[pair[0]], points[pair[1]])
+        edge = edges[i]
+        if (edge[0]==-1 or edge[1]==-1):
+            continue
 
-            node = (vertices[edge[0]][0], vertices[edge[0]][1])
-            other = (vertices[edge[1]][0], vertices[edge[1]][1])
-            if (map.get(node) == None):
-                map[node] = [other]
-            else:
-                map[node].append(other)
+        node = (vertices[edge[0]][0], vertices[edge[0]][1])
+        other = (vertices[edge[1]][0], vertices[edge[1]][1])
+        if (map.get(node) == None):
+            map[node] = [(other, gap)]
+        else:
+            map[node].append((other, gap))
 
-            if (map.get(other) == None):
-                map[other] = [node]
-            else:
-                map[other].append(node)
+        if (map.get(other) == None):
+            map[other] = [(node, gap)]
+        else:
+            map[other].append((node, gap))
+
     
     pts = vor.regions[vor.point_region[0]]
     print(vor.points[0])
@@ -71,7 +73,7 @@ def get_edge_map(vor, points, clearance, start, goal):
         # print(pt)
         if map.get(pt) != None:
             # print("appended")
-            map[pt].append(goal)
+            map[pt].append((goal, 10)) # basically this gap is always valid
     
     pts = vor.regions[vor.point_region[1]]
     map[start] = []
@@ -80,7 +82,7 @@ def get_edge_map(vor, points, clearance, start, goal):
             continue
         pt = (vertices[p][0], vertices[p][1])
         # print(pt)
-        map[start].append(pt)
+        map[start].append((pt, 10)) # this gap also always valid
 
 
         
@@ -150,9 +152,9 @@ def astar(start, goal, edges, old_path):
         # add the current node to the closed set
         closed_set.add(current)
         # explore the neighbors of the current node
-        for neighbor in edges.get(current, []):
+        for neighbor, gap in edges.get(current, []):
             # check if the neighbor is already in the closed set
-            if neighbor in closed_set:
+            if neighbor in closed_set or gap < 3: # 3 is hard limit
                 continue
             # calculate the tentative g score for the neighbor
             tentative_g = g[current] + manhattan_distance(current, neighbor)
@@ -160,9 +162,12 @@ def astar(start, goal, edges, old_path):
             if neighbor not in g or tentative_g < g[neighbor]:
                 # update the g and f scores for the neighbor
                 g[neighbor] = tentative_g
-                f[neighbor] = tentative_g + heuristic(neighbor, goal)
+                f[neighbor] = tentative_g + heuristic(neighbor, goal) + 1000/gap
                 if old_path != None:
-                    f[neighbor] += distance_to_nearest_point(neighbor, old_path)*2
+                    d = distance_to_nearest_point(neighbor, old_path)
+                    x = len(came_from) +1
+                    f[neighbor] += d * 20 * math.exp(-1/5 * (x)) # adjust here
+
                 # update the path dictionary
                 came_from[neighbor] = current
                 # add the neighbor to the open set
@@ -195,12 +200,54 @@ def distance_to_nearest_point(point, point_list):
 def smooth_curve(points):
     x = [p[0] for p in points]
     y = [p[1] for p in points]
-    tck, u = interpolate.splprep([x, y])
+    tck, u = interpolate.splprep([x, y], s=0.5)
 
-    x_i, y_i = interpolate.splev(np.linspace(0, 1, 100), tck)
+    x_i, y_i = interpolate.splev(np.linspace(0, 1, 1000), tck)
     path = [(x_i[i], y_i[i]) for i in range(len(x_i))]
 
     # plt.plot(x_i, y_i, 'r')
 
 
     return path
+
+def connected_path(points):
+    # Initialize a list to store the filled in points
+    filled_points = []
+
+    # Generate line segments between each consecutive pair of points
+    for i in range(len(points)-1):
+        p1, p2 = points[i], points[i+1]
+        xs = np.linspace(p1[0], p2[0], num=10, endpoint=True)
+        ys = np.linspace(p1[1], p2[1], num=10, endpoint=True)
+        segment_points = list(zip(xs, ys))
+        filled_points.extend(segment_points)
+    return filled_points
+
+
+def generate_arc_points(min_angle, max_angle, radius, num_points):
+    # Determine the angle step size for generating points
+    angle_step = (max_angle - min_angle) / float(num_points-1)
+    
+    # Generate points along the arc
+    points = []
+    for i in range(num_points):
+        angle = min_angle + i*angle_step
+        x = radius * math.cos(angle)
+        y = radius * math.sin(angle)
+        points.append((x,y))
+        
+    return points
+
+def generate_ellipse_arc(min_axis, max_axis, min_angle, max_angle, num_points):
+    # Calculate the step size between each point
+    step = (max_angle - min_angle) / (num_points - 1)
+    
+    # Generate a list of points that follow the ellipse arc
+    points = []
+    for i in range(num_points):
+        angle = min_angle + i * step
+        x = min_axis * math.cos(angle)
+        y = max_axis * math.sin(angle)
+        points.append((x, y))
+        
+    return points

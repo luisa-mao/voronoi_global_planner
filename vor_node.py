@@ -11,6 +11,7 @@ matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 import tf2_ros
 import tf2_geometry_msgs
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from vor_utils import *
 
 
@@ -24,7 +25,7 @@ class ScanToGoal:
         self.count = 0
         self.points = []
 
-        self.clearance = 10
+        self.clearance = 7
         self.images = []
         self.vor = []
         self.paths = []
@@ -62,7 +63,7 @@ class ScanToGoal:
             trans = self.tf_buffer.lookup_transform( scan_msg.header.frame_id, 'base_link', rospy.Time())
             # Transform the laser message from base_link to odom frame
             # scan_msg = tf2_geometry_msgs.do_transform_laser_scan(scan_msg, trans)
-        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as e:
+        except Exception as e:
             # Handle the exception appropriately
             rospy.logerr(f"Failed to transform laser scan to base_link frame: {e}")
             return
@@ -105,19 +106,28 @@ class ScanToGoal:
 
         self.points += points
         self.points = list(set(self.points))
-        tmp_points = [(0,100), start] + self.points
+
+        # not sure how the ellipse will work on worlds where orientation seems flipped
+        tmp_points = [(0,100), start] + self.points + generate_ellipse_arc(20, 15, -math.pi, 0, 20)
+
         vor = Voronoi(tmp_points)
 
-        map = get_edge_map(vor, tmp_points, self.clearance, start, goal)
+        map = get_edge_map(vor, start, goal)
         # can change this so that luisa_path is not none at first, so don't
         # need if statement in astar function
         self.path = astar(start, goal, map, self.path)
-        if self.clearance == 2.5:
-            print("no feasible path")
-            return
+        # if self.clearance == 2.5:
+        #     print("no feasible path")
+        #     self.path = None
+        #     self.clearance = 7
+        #     self.points = []
+        #     return
         if self.path == None:
-            self.clearance -= 0.5
-            print("decreased clearance ", self.clearance)
+            # self.clearance -= 0.5
+            # print("decreased clearance ", self.clearance)
+            self.points = []
+            self.path = None
+            print("no feasible path")
             return
 
 
@@ -131,6 +141,10 @@ class ScanToGoal:
 
 
         luisa_path = create_ros_path(smooth_curve(self.path))
+        # luisa_path = create_ros_path(connected_path(self.path))
+
+        # luisa_path = create_ros_path(self.path)
+
         
         # Publish the goal message
         self.path_pub.publish(luisa_path)

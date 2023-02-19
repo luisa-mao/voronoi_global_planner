@@ -52,8 +52,13 @@ for i in range(len(points)):
 points1 = [(0,100), (0,0), (-50,-10),(-40,-10), (50,-10)]
 vor = Voronoi(points1, incremental = True)
 vor.add_points(points)
+# points2 = [(x*2, -10) for x in range (-15, 15)]
+# points2 = generate_arc_points(-math.pi/2, 0, 10, 10)
+points2 = generate_ellipse_arc(20, 15, -math.pi, 0, 20)
+vor1 = vor
+vor.add_points(points2)
 points1+=points
-points = points1
+points = points1 + points2
 
 fig = voronoi_plot_2d(vor)
 # plt.show()
@@ -62,8 +67,8 @@ fig = voronoi_plot_2d(vor)
 
 
 start = (0, 0)
-goal = (0, 100)
-map = get_edge_map(vor, points, 7, start, goal)
+goal = (100*math.cos(yaw), 100* math.sin(yaw))
+map = get_edge_map(vor, start, goal)
 for p in vor.regions[vor.point_region[0]]:
     print(p, vor.vertices[p][0], vor.vertices[p][1])
 
