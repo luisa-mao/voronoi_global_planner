@@ -32,6 +32,9 @@ class ScanToGoal:
         self.points_list = []
         self.starts = []
         self.path = None
+        self.yaw  = 0
+
+        # rospy.sleep(1)
 
 
         # Create subscribers and publishers
@@ -81,7 +84,12 @@ class ScanToGoal:
         shift_x = odom_msg.pose.pose.position.x
         shift_y = odom_msg.pose.pose.position.y
         start = (shift_x * 10 , shift_y * 10)
-        goal = (0,100)
+
+        if self.count ==0: # short term hack
+            self.yaw = yaw
+
+        goal = (100*math.cos(self.yaw),100* math.sin(self.yaw))
+
         print(start)
         print(shift_x, shift_y)
 
@@ -108,7 +116,7 @@ class ScanToGoal:
         self.points = list(set(self.points))
 
         # not sure how the ellipse will work on worlds where orientation seems flipped
-        tmp_points = [(0,100), start] + self.points + generate_ellipse_arc(20, 15, -math.pi, 0, 20)
+        tmp_points = [goal, start] + self.points + generate_ellipse_arc(20, 15, math.pi/2+self.yaw, -math.pi/2 + self.yaw, 20)
 
         vor = Voronoi(tmp_points)
 
@@ -140,14 +148,17 @@ class ScanToGoal:
         print("path length ", len(self.path))
 
 
-        luisa_path = create_ros_path(smooth_curve(self.path))
-        # luisa_path = create_ros_path(connected_path(self.path))
+        # luisa_path = create_ros_path(smooth_curve(self.path))
+        luisa_path = create_ros_path(connected_path(self.path))
 
         # luisa_path = create_ros_path(self.path)
 
         
         # Publish the goal message
         self.path_pub.publish(luisa_path)
+
+        self.count+=1
+
     def save_data(self):
         for i in range(len(self.vor)):
             name = "gif_images/"+str(i)

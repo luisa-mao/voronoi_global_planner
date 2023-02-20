@@ -14,6 +14,8 @@
 - list of lidars, compare oldest to most recent, throw away old scans if mean/median doesn't agree
     - figure out the heuristic for this
 
+- given came_from find, how sharp the path would be if adding the next neighbor
+
 ## Tunable Params:
 - spline coefficient
 - priority of similar path (to solve path switching)

@@ -8,6 +8,9 @@ import rospy
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
 import scipy.interpolate as interpolate
+from sklearn.cluster import DBSCAN
+from scipy.spatial.distance import directed_hausdorff
+from sklearn.linear_model import RANSACRegressor
 
 
 def get_yaw(odom_msg):
@@ -46,7 +49,13 @@ def get_edge_map(vor, start, goal):
         
         pair = ridge_points[i]
 
-        gap = math.dist(points[pair[0]], points[pair[1]])
+        point1 = tuple(points[pair[0]])
+        point2 = tuple(points[pair[1]])
+        gap = math.dist(point1, point2)
+        # set1 = clusters.get(point1, [point1])
+        # set2 = clusters.get(point2, [point2])
+        # gap = max(directed_hausdorff(set1, set2)[0], directed_hausdorff(set2, set1)[0])
+
         edge = edges[i]
         if (edge[0]==-1 or edge[1]==-1):
             continue
@@ -156,13 +165,21 @@ def astar(start, goal, edges, old_path):
             # check if the neighbor is already in the closed set
             if neighbor in closed_set or gap < 3: # 3 is hard limit
                 continue
+            if current!=start:
+                prev = came_from[current] # discard if angle too sharp
+                cos_angle = cosine_angle(prev,neighbor, current)
+                if cos_angle > -0.2 and gap < 4 and math.dist(prev, neighbor) < 7:
+                # if cos_angle > -0.2:
+                    print("discarded")
+                    continue
             # calculate the tentative g score for the neighbor
             tentative_g = g[current] + manhattan_distance(current, neighbor)
             # check if we've already evaluated this neighbor
             if neighbor not in g or tentative_g < g[neighbor]:
                 # update the g and f scores for the neighbor
                 g[neighbor] = tentative_g
-                f[neighbor] = tentative_g + heuristic(neighbor, goal) + 1000/gap
+                f[neighbor] = tentative_g + heuristic(neighbor, goal) + 800/gap
+
                 if old_path != None:
                     d = distance_to_nearest_point(neighbor, old_path)
                     x = len(came_from) +1
@@ -239,8 +256,16 @@ def generate_arc_points(min_angle, max_angle, radius, num_points):
     return points
 
 def generate_ellipse_arc(min_axis, max_axis, min_angle, max_angle, num_points):
+    # Ensure that the angle range is between 0 and 2*pi
+    full_circle = 2 * math.pi
+    angle_range = ((max_angle - min_angle) % full_circle + full_circle) % full_circle
+    if angle_range == 0:
+        angle_range = full_circle
+    
     # Calculate the step size between each point
-    step = (max_angle - min_angle) / (num_points - 1)
+    step = angle_range / (num_points - 1)
+    if min_angle > max_angle:
+        step *= -1
     
     # Generate a list of points that follow the ellipse arc
     points = []
@@ -249,5 +274,101 @@ def generate_ellipse_arc(min_axis, max_axis, min_angle, max_angle, num_points):
         x = min_axis * math.cos(angle)
         y = max_axis * math.sin(angle)
         points.append((x, y))
-        
+    
+    # Reverse the list of points if they were generated clockwise
+    if step < 0:
+        points.reverse()
+    
     return points
+
+
+
+def group_points(points, eps, min_samples):
+    """
+    Given a list of points, groups points that are close together using the DBSCAN clustering algorithm.
+    
+    Arguments:
+    points -- list of coordinate points in the format [(x1, y1), (x2, y2), ...]
+    eps -- DBSCAN parameter: the maximum distance between two samples for them to be considered as part of the same cluster
+    min_samples -- DBSCAN parameter: the number of samples in a neighborhood for a point to be considered as a core point
+    
+    Returns:
+    A dictionary mapping cluster centers to the list of points that belong to each cluster.
+    """
+    # Convert points to a numpy array
+    X = np.array(points)
+    
+    # Run DBSCAN clustering algorithm
+    db = DBSCAN(eps=eps, min_samples=min_samples).fit(X)
+    labels = db.labels_
+    
+     # Create dictionary mapping cluster centers to points
+    clusters = {}
+    for i in range(len(points)):
+        label = labels[i]
+        if label == -1:  # point is not part of any cluster
+            continue
+        if label not in clusters:
+            clusters[tuple(X[labels == label].mean(axis=0))] = []
+        clusters[tuple(X[labels == label].mean(axis=0))].append(points[i])
+
+    return clusters
+
+
+def detect_lines(points, threshold=0.1, min_samples=3):
+    """
+    Detects lines from a set of input points using the RANSAC algorithm.
+    
+    Arguments:
+    points -- list of coordinate points in the format [(x1, y1), (x2, y2), ...]
+    threshold -- RANSAC algorithm parameter: the maximum distance from a point to a line for the point to be considered an inlier
+    min_samples -- RANSAC algorithm parameter: the minimum number of samples to be randomly chosen for a model fit
+    
+    Returns:
+    A list of lists, where each sublist contains the input points that belong to a line.
+    """
+    # Convert points to a numpy array
+    X = np.array(points)
+    
+    # Run RANSAC algorithm to detect lines
+    model = RANSACRegressor(min_samples=min_samples, residual_threshold=threshold)
+    model.fit(X[:, np.newaxis, 0], X[:, np.newaxis, 1])
+    inlier_mask = model.inlier_mask_
+    
+    # Split inliers into separate groups (lines)
+    lines = []
+    current_line = []
+    for i, point in enumerate(points):
+        if inlier_mask[i]:
+            current_line.append(point)
+        else:
+            if current_line:
+                lines+=current_line
+                current_line = []
+    if current_line:
+        # lines.append(current_line)
+        lines += current_line
+    
+    return lines
+
+def cosine_angle(p1, p2, p3):
+    x1 = p1[0]
+    x2 = p2[0]
+    x3 = p3[0]
+
+    y1 = p1[1]
+    y2 = p2[1]
+    y3 = p3[1]
+
+    # Calculate the lengths of the two line segments
+    a = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+    b = math.sqrt((x3 - x2) ** 2 + (y3 - y2) ** 2)
+    
+    # Calculate the dot product of the two line segments
+    dot_product = (x2 - x1) * (x3 - x2) + (y2 - y1) * (y3 - y2)
+    
+    # Calculate the cosine of the angle between the two line segments
+    cosine = dot_product / (a * b)
+    
+    return cosine
+

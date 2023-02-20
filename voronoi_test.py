@@ -41,13 +41,19 @@ ranges = [2.833653211593628, 2.8102400302886963, 2.7975316047668457, 2.793277978
 
 points = ranges_to_coordinates(ranges, angle_min + yaw, angle_increment)
 
+
 for i in range(len(points)):
     x, y = points[i]
     # x += shift_x
     # y += shift_y
-    x = round(x  * 10 / 2) *2
-    y = round(y * 10 /2) *2
+    x *=10
+    y *=10
+    # x = round(x  * 10 / 2) *2
+    # y = round(y * 10 /2) *2
     points[i] = (x, y)
+clusters = group_points(points, .5, 1)
+points = list(clusters.keys())
+print(points)
 
 points1 = [(0,100), (0,0), (-50,-10),(-40,-10), (50,-10)]
 vor = Voronoi(points1, incremental = True)
@@ -68,7 +74,7 @@ fig = voronoi_plot_2d(vor)
 
 start = (0, 0)
 goal = (100*math.cos(yaw), 100* math.sin(yaw))
-map = get_edge_map(vor, start, goal)
+map = get_edge_map(vor, clusters, start, goal)
 for p in vor.regions[vor.point_region[0]]:
     print(p, vor.vertices[p][0], vor.vertices[p][1])
 
