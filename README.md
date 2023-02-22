@@ -15,6 +15,7 @@
     - figure out the heuristic for this
 
 - given came_from find, how sharp the path would be if adding the next neighbor
+- multiple candidate paths and evaluator
 
 ## Tunable Params:
 - spline coefficient
