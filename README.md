@@ -5,7 +5,7 @@
 - change localgoal.py to subscribe to "luisa_path" instead of the move_base global plan
 
 ## Visualization:
-- subscribe to topics "luisa_path", "vor_vertices" and "vor_obstacles" in rviz
+- subscribe to topics "luisa_path", "vor_vertices" and "obstacle_markers" in rviz
 
 ## Done:
 - made goal a region & connected its vertices
