@@ -1,4 +1,12 @@
 # My Voronoi Planner
+## To Use:
+- add this repo as a submodule
+- run vor_node.py whenever you launch the other nodes
+- change localgoal.py to subscribe to "luisa_path" instead of the move_base global plan
+
+## Visualization:
+- subscribe to topics "luisa_path", "vor_vertices" and "vor_obstacles" in rviz
+
 ## Done:
 - made goal a region & connected its vertices
 - made start a region & connected its vertices
@@ -16,6 +24,7 @@
 
 - given came_from find, how sharp the path would be if adding the next neighbor
 - multiple candidate paths and evaluator
+- switch from summing heuristics to multiple queues
 
 ## Tunable Params:
 - spline coefficient
