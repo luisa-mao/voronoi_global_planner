@@ -101,7 +101,7 @@ class ScanToGoal:
             return
 
         # luisa_path = create_ros_path(smooth_curve(self.path))
-        luisa_path = create_ros_path(connected_path(self.path))
+        luisa_path = create_ros_path(self.path)
         
         # Publish the path message
         self.path_pub.publish(luisa_path)
