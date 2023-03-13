@@ -14,6 +14,7 @@ from vor_utils import *
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 import geometry_msgs.msg
+from smh_astar import *
 
 
 
@@ -26,6 +27,7 @@ class ScanToGoal:
 
         self.path = None
         self.initial_yaw  = 0
+        self.start = None
 
 
         # Create subscribers and publishers
@@ -54,11 +56,12 @@ class ScanToGoal:
 
         if self.count ==0: # short term hack
             self.initial_yaw = yaw
+            self.start = start
 
         goal = (100*math.cos(self.initial_yaw),100* math.sin(self.initial_yaw))
 
-        print(start)
-        print(shift_x, shift_y)
+        # print(start)
+        # print(shift_x, shift_y)
 
         angle_min = scan_msg.angle_min
         increment = scan_msg.angle_increment
@@ -78,14 +81,18 @@ class ScanToGoal:
         self.points = list(set(self.points))
 
         # not sure how the ellipse will work on worlds where orientation seems flipped
-        tmp_points = [goal, start] + self.points + generate_ellipse_arc(20, 15, math.pi/2+self.initial_yaw, 3*math.pi/2 + self.initial_yaw, 20)
+        tmp_points = [goal] + self.points + generate_ellipse_arc(20, 15, math.pi/2+self.initial_yaw, 3*math.pi/2 + self.initial_yaw, 20)
 
         vor = Voronoi(tmp_points)
 
-        map = get_edge_map(vor, start, goal)
-        # can change this so that luisa_path is not none at first, so don't
-        # need if statement in astar function
-        self.path = astar(start, goal, map, self.path)
+        map = get_edge_map2(vor, start)
+
+        # vor_vertices = np.append(vor.vertices, [[0,0]], axis=0)
+        vor_vertices = np.append(vor.vertices, [[start[0],start[1]]], axis=0)
+        vor_vertices = np.append(vor_vertices, [[0,100]], axis=0)
+        start = len(vor.vertices)
+        goal = len(vor.vertices)+1
+        self.path = a_star(start, goal, map, vor_vertices, self.path)
         
         if self.path == None: # clear obstacles from environment. Try to start again
             self.points = []

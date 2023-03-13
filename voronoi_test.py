@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from vor_utils import *
 from scipy.interpolate import UnivariateSpline
 import scipy.interpolate as interpolate
+from smh_astar import *
+import pdb
 
 # pose: 
 #   pose: 
@@ -44,27 +46,21 @@ points = ranges_to_coordinates(ranges, angle_min + yaw, angle_increment)
 
 for i in range(len(points)):
     x, y = points[i]
-    # x += shift_x
-    # y += shift_y
-    x *=10
-    y *=10
-    # x = round(x  * 10 / 2) *2
-    # y = round(y * 10 /2) *2
+    x += -0.055  # hardcoded laser -> base_link
+    x = round(x  * 10 / 2) *2   # scale by 10, discretize by 2, make it an int
+    y = round(y * 10 /2) *2
     points[i] = (x, y)
-clusters = group_points(points, .5, 1)
-points = list(clusters.keys())
-print(points)
 
 points1 = [(0,100), (0,0), (-50,-10),(-40,-10), (50,-10)]
 vor = Voronoi(points1, incremental = True)
 vor.add_points(points)
 # points2 = [(x*2, -10) for x in range (-15, 15)]
 # points2 = generate_arc_points(-math.pi/2, 0, 10, 10)
-points2 = generate_ellipse_arc(20, 15, -math.pi, 0, 20)
-vor1 = vor
-vor.add_points(points2)
-points1+=points
-points = points1 + points2
+# points2 = generate_ellipse_arc(20, 15, -math.pi, 0, 20)
+# vor1 = vor
+# vor.add_points(points2)
+# points1+=points
+# points = points1 + points2
 
 fig = voronoi_plot_2d(vor)
 # plt.show()
@@ -74,7 +70,8 @@ fig = voronoi_plot_2d(vor)
 
 start = (0, 0)
 goal = (100*math.cos(yaw), 100* math.sin(yaw))
-map = get_edge_map(vor, clusters, start, goal)
+pdb.set_trace()
+map = get_edge_map2(vor, (0,0))
 for p in vor.regions[vor.point_region[0]]:
     print(p, vor.vertices[p][0], vor.vertices[p][1])
 
@@ -86,17 +83,21 @@ for p in vor.regions[vor.point_region[0]]:
 rx = [p[0] for p in points]
 ry = [p[1] for p in points]
 plt.plot(rx, ry, 'ko')
-path = astar(start, goal, map, None)
+pdb.set_trace()
+vor_vertices = np.append(vor.vertices, [[0,0]], axis=0)
+vor_vertices = np.append(vor_vertices, [[0,100]], axis=0)
+old_path = a_star(len(vor.vertices), len(vor.vertices)+1, map, vor_vertices, None)
+path = a_star(len(vor.vertices), len(vor.vertices)+1, map, vor_vertices, old_path)
 
 print(path)
 x = [p[0] for p in path]
 y = [p[1] for p in path]
 plt.plot(x, y, 'bo')
 
-tck, u = interpolate.splprep([x, y])
-x_i, y_i = interpolate.splev(np.linspace(0, 1, 100), tck)
+# tck, u = interpolate.splprep([x, y])
+# x_i, y_i = interpolate.splev(np.linspace(0, 1, 100), tck)
 
-plt.plot(x_i, y_i, 'r')
+# plt.plot(x_i, y_i, 'r')
 
 
 plt.plot([start[0], goal[0]], [start[1], goal[1]], 'go')
