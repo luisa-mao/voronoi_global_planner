@@ -2,13 +2,13 @@ from vor_utils import *
 import pdb
 
 w1 = 1
-w2 = 2
+w2 = 3
 
 def euclidean_distance(node, goal):
     return round(math.dist(node, goal))
 
 def heuristic1(node, goal, gap, old_path):
-    return 10/gap
+    return 100/gap
 
 def heuristic2(node, goal, gap, old_path):
     if (old_path is None):
@@ -39,7 +39,7 @@ def a_star(start, goal, edge_map, vor_vertices, old_path):
                     tup = get_tuple_by_second_element(open_sets[0], neighbor)
                     if tup is not None:
                         open_sets[0].remove(tup)
-                    open_sets[0].append(( g_scores[neighbor]+heuristics[0](vor_vertices[neighbor], vor_vertices[goal]), neighbor))
+                    open_sets[0].append(( g_scores[neighbor]+euclidean_distance(vor_vertices[neighbor], vor_vertices[goal]), neighbor))
 
                     if neighbor not in closed_inad:
                     
@@ -48,7 +48,7 @@ def a_star(start, goal, edge_map, vor_vertices, old_path):
                             tup = get_tuple_by_second_element(open_sets[i], neighbor)
                             if tup is not None:
                                 open_sets[i].remove(tup)
-                            open_sets[i].append(( g_scores[neighbor]+heuristics[i](vor_vertices[neighbor], vor_vertices[goal], gap, old_path), neighbor))
+                            open_sets[i].append((heuristics[i](vor_vertices[neighbor], vor_vertices[goal], gap, old_path), neighbor))
 
     def reconstruct_path2(start, goal, came_from):
         path = [goal]
@@ -107,8 +107,8 @@ def get_edge_map2(vor, start):
     vertices = vor.vertices
     points = vor.points
 
-    min_dist = math.inf
-    closest_vertex = None
+    # min_dist = math.inf
+    # closest_vertex = None
 
     for i in range(len(ridge_points)):
         
@@ -132,12 +132,12 @@ def get_edge_map2(vor, start):
         else:
             map[edge[1]].append((edge[0], gap))
 
-        if math.dist(start, vertices[edge[0]])<min_dist:
-            min_dist = math.dist(start, vertices[edge[0]])
-            closest_vertex = edge[0]
-        if math.dist(start, vertices[edge[1]])<min_dist:
-            min_dist = math.dist(start, vertices[edge[1]])
-            closest_vertex = edge[1]
+        # if math.dist(start, vertices[edge[0]])<min_dist:
+        #     min_dist = math.dist(start, vertices[edge[0]])
+        #     closest_vertex = edge[0]
+        # if math.dist(start, vertices[edge[1]])<min_dist:
+        #     min_dist = math.dist(start, vertices[edge[1]])
+        #     closest_vertex = edge[1]
 
     # pdb.set_trace()
     pts = vor.regions[vor.point_region[0]]
@@ -148,13 +148,13 @@ def get_edge_map2(vor, start):
         if map.get(p) != None:
             map[p].append((len(vor.vertices)+1, 100)) # this is goal
 
-    map[len(vor.vertices)] = [(closest_vertex, 100)] # this is start
+    # map[len(vor.vertices)] = [(closest_vertex, 100)] # this is start
 
-    # pts = vor.regions[vor.point_region[1]]
-    # map[len(vor.vertices)] = []
-    # for p in pts:
-    #     if p == -1:
-    #         continue
-    #     map[len(vor.vertices)].append((p, 100)) # this is start
+    pts = vor.regions[vor.point_region[1]]
+    map[len(vor.vertices)] = []
+    for p in pts:
+        if p == -1:
+            continue
+        map[len(vor.vertices)].append((p, 100)) # this is start
     
     return map

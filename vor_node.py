@@ -81,7 +81,7 @@ class ScanToGoal:
         self.points = list(set(self.points))
 
         # not sure how the ellipse will work on worlds where orientation seems flipped
-        tmp_points = [goal] + self.points + generate_ellipse_arc(20, 15, math.pi/2+self.initial_yaw, 3*math.pi/2 + self.initial_yaw, 20)
+        tmp_points = [goal, start] + self.points + generate_ellipse_arc(20, 15, math.pi/2+self.initial_yaw, 3*math.pi/2 + self.initial_yaw, 20)
 
         vor = Voronoi(tmp_points)
 
