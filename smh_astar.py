@@ -2,7 +2,7 @@ from vor_utils import *
 import pdb
 
 w1 = 1
-w2 = 3
+w2 = 2
 
 def euclidean_distance(node, goal):
     return round(math.dist(node, goal))
@@ -62,7 +62,7 @@ def a_star(start, goal, edge_map, vor_vertices, old_path):
 
 
 
-    heuristics = [euclidean_distance, heuristic1, heuristic2]
+    heuristics = [euclidean_distance, heuristic1]
     open_sets = [[(0, start)] for heuristic in heuristics]
     closed_anchor = set()
     closed_inad = set()
