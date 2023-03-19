@@ -73,6 +73,8 @@ def a_star(start, goal, edge_map, vor_vertices, old_path):
         for i in range(1, len(heuristics)):
             heapq.heapify(open_sets[i])
             heapq.heapify(open_sets[0])
+            if len(open_sets[i]) == 0 or len(open_sets[0]) == 0:
+                return old_path
             if open_sets[i][0][0] <= w2 * open_sets[0][0][0]:
                 if g_scores[goal] <= open_sets[i][0][0]:
                     if g_scores[goal] < math.inf:
