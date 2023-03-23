@@ -8,9 +8,9 @@ import rospy
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
 import scipy.interpolate as interpolate
-from sklearn.cluster import DBSCAN
+# from sklearn.cluster import DBSCAN
 from scipy.spatial.distance import directed_hausdorff
-from sklearn.linear_model import RANSACRegressor
+# from sklearn.linear_model import RANSACRegressor
 
 
 def get_yaw(odom_msg):
@@ -283,92 +283,92 @@ def generate_ellipse_arc(min_axis, max_axis, min_angle, max_angle, num_points):
 
 
 
-def group_points(points, eps, min_samples):
-    """
-    Given a list of points, groups points that are close together using the DBSCAN clustering algorithm.
+# def group_points(points, eps, min_samples):
+#     """
+#     Given a list of points, groups points that are close together using the DBSCAN clustering algorithm.
     
-    Arguments:
-    points -- list of coordinate points in the format [(x1, y1), (x2, y2), ...]
-    eps -- DBSCAN parameter: the maximum distance between two samples for them to be considered as part of the same cluster
-    min_samples -- DBSCAN parameter: the number of samples in a neighborhood for a point to be considered as a core point
+#     Arguments:
+#     points -- list of coordinate points in the format [(x1, y1), (x2, y2), ...]
+#     eps -- DBSCAN parameter: the maximum distance between two samples for them to be considered as part of the same cluster
+#     min_samples -- DBSCAN parameter: the number of samples in a neighborhood for a point to be considered as a core point
     
-    Returns:
-    A dictionary mapping cluster centers to the list of points that belong to each cluster.
-    """
-    # Convert points to a numpy array
-    X = np.array(points)
+#     Returns:
+#     A dictionary mapping cluster centers to the list of points that belong to each cluster.
+#     """
+#     # Convert points to a numpy array
+#     X = np.array(points)
     
-    # Run DBSCAN clustering algorithm
-    db = DBSCAN(eps=eps, min_samples=min_samples).fit(X)
-    labels = db.labels_
+#     # Run DBSCAN clustering algorithm
+#     db = DBSCAN(eps=eps, min_samples=min_samples).fit(X)
+#     labels = db.labels_
     
-     # Create dictionary mapping cluster centers to points
-    clusters = {}
-    for i in range(len(points)):
-        label = labels[i]
-        if label == -1:  # point is not part of any cluster
-            continue
-        if label not in clusters:
-            clusters[tuple(X[labels == label].mean(axis=0))] = []
-        clusters[tuple(X[labels == label].mean(axis=0))].append(points[i])
+#      # Create dictionary mapping cluster centers to points
+#     clusters = {}
+#     for i in range(len(points)):
+#         label = labels[i]
+#         if label == -1:  # point is not part of any cluster
+#             continue
+#         if label not in clusters:
+#             clusters[tuple(X[labels == label].mean(axis=0))] = []
+#         clusters[tuple(X[labels == label].mean(axis=0))].append(points[i])
 
-    return clusters
+#     return clusters
 
 
-def detect_lines(points, threshold=0.1, min_samples=3):
-    """
-    Detects lines from a set of input points using the RANSAC algorithm.
+# def detect_lines(points, threshold=0.1, min_samples=3):
+#     """
+#     Detects lines from a set of input points using the RANSAC algorithm.
     
-    Arguments:
-    points -- list of coordinate points in the format [(x1, y1), (x2, y2), ...]
-    threshold -- RANSAC algorithm parameter: the maximum distance from a point to a line for the point to be considered an inlier
-    min_samples -- RANSAC algorithm parameter: the minimum number of samples to be randomly chosen for a model fit
+#     Arguments:
+#     points -- list of coordinate points in the format [(x1, y1), (x2, y2), ...]
+#     threshold -- RANSAC algorithm parameter: the maximum distance from a point to a line for the point to be considered an inlier
+#     min_samples -- RANSAC algorithm parameter: the minimum number of samples to be randomly chosen for a model fit
     
-    Returns:
-    A list of lists, where each sublist contains the input points that belong to a line.
-    """
-    # Convert points to a numpy array
-    X = np.array(points)
+#     Returns:
+#     A list of lists, where each sublist contains the input points that belong to a line.
+#     """
+#     # Convert points to a numpy array
+#     X = np.array(points)
     
-    # Run RANSAC algorithm to detect lines
-    model = RANSACRegressor(min_samples=min_samples, residual_threshold=threshold)
-    model.fit(X[:, np.newaxis, 0], X[:, np.newaxis, 1])
-    inlier_mask = model.inlier_mask_
+#     # Run RANSAC algorithm to detect lines
+#     model = RANSACRegressor(min_samples=min_samples, residual_threshold=threshold)
+#     model.fit(X[:, np.newaxis, 0], X[:, np.newaxis, 1])
+#     inlier_mask = model.inlier_mask_
     
-    # Split inliers into separate groups (lines)
-    lines = []
-    current_line = []
-    for i, point in enumerate(points):
-        if inlier_mask[i]:
-            current_line.append(point)
-        else:
-            if current_line:
-                lines+=current_line
-                current_line = []
-    if current_line:
-        # lines.append(current_line)
-        lines += current_line
+#     # Split inliers into separate groups (lines)
+#     lines = []
+#     current_line = []
+#     for i, point in enumerate(points):
+#         if inlier_mask[i]:
+#             current_line.append(point)
+#         else:
+#             if current_line:
+#                 lines+=current_line
+#                 current_line = []
+#     if current_line:
+#         # lines.append(current_line)
+#         lines += current_line
     
-    return lines
+#     return lines
 
-def cosine_angle(p1, p2, p3):
-    x1 = p1[0]
-    x2 = p2[0]
-    x3 = p3[0]
+# def cosine_angle(p1, p2, p3):
+#     x1 = p1[0]
+#     x2 = p2[0]
+#     x3 = p3[0]
 
-    y1 = p1[1]
-    y2 = p2[1]
-    y3 = p3[1]
+#     y1 = p1[1]
+#     y2 = p2[1]
+#     y3 = p3[1]
 
-    # Calculate the lengths of the two line segments
-    a = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-    b = math.sqrt((x3 - x2) ** 2 + (y3 - y2) ** 2)
+#     # Calculate the lengths of the two line segments
+#     a = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+#     b = math.sqrt((x3 - x2) ** 2 + (y3 - y2) ** 2)
     
-    # Calculate the dot product of the two line segments
-    dot_product = (x2 - x1) * (x3 - x2) + (y2 - y1) * (y3 - y2)
+#     # Calculate the dot product of the two line segments
+#     dot_product = (x2 - x1) * (x3 - x2) + (y2 - y1) * (y3 - y2)
     
-    # Calculate the cosine of the angle between the two line segments
-    cosine = dot_product / (a * b)
+#     # Calculate the cosine of the angle between the two line segments
+#     cosine = dot_product / (a * b)
     
-    return cosine
+#     return cosine
 
