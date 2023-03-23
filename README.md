@@ -1,4 +1,4 @@
-# My Voronoi Planner
+# Voronoi Planner
 ## To Use:
 - add this repo as a submodule
 - run vor_node.py whenever you launch the other nodes
