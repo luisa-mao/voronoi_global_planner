@@ -165,13 +165,13 @@ def astar(start, goal, edges, old_path):
             # check if the neighbor is already in the closed set
             if neighbor in closed_set or gap < 3: # 3 is hard limit
                 continue
-            if current!=start:
-                prev = came_from[current] # discard if angle too sharp
-                cos_angle = cosine_angle(prev,neighbor, current)
-                if cos_angle > -0.2 and gap < 4 and math.dist(prev, neighbor) < 7:
-                # if cos_angle > -0.2:
-                    print("discarded")
-                    continue
+            # if current!=start:
+                # prev = came_from[current] # discard if angle too sharp
+                # cos_angle = cosine_angle(prev,neighbor, current)
+                # if cos_angle > -0.2 and gap < 4 and math.dist(prev, neighbor) < 7:
+                # # if cos_angle > -0.2:
+                #     print("discarded")
+                #     continue
             # calculate the tentative g score for the neighbor
             tentative_g = g[current] + manhattan_distance(current, neighbor)
             # check if we've already evaluated this neighbor
