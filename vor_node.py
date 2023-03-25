@@ -89,7 +89,7 @@ class ScanToGoal:
 
         # vor_vertices = np.append(vor.vertices, [[0,0]], axis=0)
         vor_vertices = np.append(vor.vertices, [[start[0],start[1]]], axis=0)
-        vor_vertices = np.append(vor_vertices, [[0,100]], axis=0)
+        vor_vertices = np.append(vor_vertices, [[goal[0], goal[1]]], axis=0)
         start = len(vor.vertices)
         goal = len(vor.vertices)+1
         self.path = a_star(start, goal, map, vor_vertices, self.path)
