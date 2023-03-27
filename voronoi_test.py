@@ -89,6 +89,9 @@ vor_vertices = np.append(vor_vertices, [[0,100]], axis=0)
 old_path = a_star(len(vor.vertices), len(vor.vertices)+1, map, vor_vertices, None)
 path = a_star(len(vor.vertices), len(vor.vertices)+1, map, vor_vertices, old_path)
 
+tentative_obstacles = [(4,22)]
+print(check_obstacles_distance(tentative_obstacles, path, 2))
+
 print(path)
 x = [p[0] for p in path]
 y = [p[1] for p in path]

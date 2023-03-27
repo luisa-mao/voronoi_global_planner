@@ -4,9 +4,9 @@ import random
 import math
 import heapq
 # import matplotlib.pyplot as plt
-import rospy
-from nav_msgs.msg import Path
-from geometry_msgs.msg import PoseStamped
+# import rospy
+# from nav_msgs.msg import Path
+# from geometry_msgs.msg import PoseStamped
 import scipy.interpolate as interpolate
 # from sklearn.cluster import DBSCAN
 from scipy.spatial.distance import directed_hausdorff
@@ -122,24 +122,24 @@ def get_edge_map(vor, start, goal):
 #         name = "gif_images/"+str(i)
 #         plot(vor_list[i], points_list[i], path_list[i], start_list[i], False, True, name)
 
-def create_ros_path(coords):
-    path = Path()
-    path.header.frame_id = 'odom'  # Set the frame ID for the path
+# def create_ros_path(coords):
+#     path = Path()
+#     path.header.frame_id = 'odom'  # Set the frame ID for the path
 
-    # Loop through the coordinates and add each one to the path as a PoseStamped message
-    for coord in coords:
-        pose = PoseStamped()
-        pose.header.frame_id = 'odom'  # Set the frame ID for the pose
-        pose.pose.position.x = coord[0]/10  # Set the x coordinate
-        pose.pose.position.y = coord[1]/10  # Set the y coordinate
-        pose.pose.position.z = 0.0  # Set the z coordinate to zero
-        pose.pose.orientation.x = 0.0  # Set the orientation to zero
-        pose.pose.orientation.y = 0.0
-        pose.pose.orientation.z = 0.0
-        pose.pose.orientation.w = 1.0
-        path.poses.append(pose)
+#     # Loop through the coordinates and add each one to the path as a PoseStamped message
+#     for coord in coords:
+#         pose = PoseStamped()
+#         pose.header.frame_id = 'odom'  # Set the frame ID for the pose
+#         pose.pose.position.x = coord[0]/10  # Set the x coordinate
+#         pose.pose.position.y = coord[1]/10  # Set the y coordinate
+#         pose.pose.position.z = 0.0  # Set the z coordinate to zero
+#         pose.pose.orientation.x = 0.0  # Set the orientation to zero
+#         pose.pose.orientation.y = 0.0
+#         pose.pose.orientation.z = 0.0
+#         pose.pose.orientation.w = 1.0
+#         path.poses.append(pose)
 
-    return path
+#     return path
 
 
 def astar(start, goal, edges, old_path):
@@ -312,3 +312,21 @@ def closest_path(start, goal, edge_map, old_path):
 
     path.append(goal)
     return old_path
+
+def point_to_segment_distance(point, segment):
+    x, y = point
+    x1, y1 = segment[0]
+    x2, y2 = segment[1]
+    numerator = abs((y2-y1)*x - (x2-x1)*y + x2*y1 - y2*x1)
+    denominator = math.sqrt((y2-y1)**2 + (x2-x1)**2)
+    distance = numerator / denominator
+    return distance
+
+def check_obstacles_distance(obstacle_points, path_points, distance_threshold):
+    for point in obstacle_points:
+        for i in range(len(path_points) - 1):
+            segment = (path_points[i], path_points[i+1])
+            distance = point_to_segment_distance(point, segment)
+            if distance < distance_threshold:
+                return False
+    return True
