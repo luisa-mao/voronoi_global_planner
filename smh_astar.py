@@ -2,7 +2,7 @@ from vor_utils import *
 import pdb
 
 w1 = 1
-w2 = 2
+w2 = 100
 
 def euclidean_distance(node, goal):
     return round(math.dist(node, goal))
@@ -73,24 +73,25 @@ def a_star(start, goal, edge_map, vor_vertices, old_path):
         for i in range(1, len(heuristics)):
             heapq.heapify(open_sets[i])
             heapq.heapify(open_sets[0])
-            if len(open_sets[i]) == 0 or len(open_sets[0]) == 0:
-                return old_path
-            if open_sets[i][0][0] <= w2 * open_sets[0][0][0]:
+            # if len(open_sets[i]) == 0 or len(open_sets[0]) == 0:
+            #     return old_path
+            if len(open_sets[i])>0 and open_sets[i][0][0] <= w2 * open_sets[0][0][0]:
+                print("here", open_sets[i][0][0], w2* open_sets[0][0][0])
                 if g_scores[goal] <= open_sets[i][0][0]:
                     if g_scores[goal] < math.inf:
                         return reconstruct_path2(start, goal, parents)
-                    else:
-                        s = heapq.heappop(open_sets[i])
-                        expand_state(s)
-                        closed_inad.add(s[1])
                 else:
-                    if g_scores[goal] <= open_sets[0][0][0]:
-                        if (g_scores[goal]) < math.inf:
-                            return reconstruct_path2(start, goal, parents)
-                    else:
-                        s = heapq.heappop(open_sets[0])
-                        expand_state(s)
-                        closed_anchor.add(s[1])
+                    s = heapq.heappop(open_sets[i])
+                    expand_state(s)
+                    closed_inad.add(s[1])
+            else:
+                if g_scores[goal] <= open_sets[0][0][0]:
+                    if (g_scores[goal]) < math.inf:
+                        return reconstruct_path2(start, goal, parents)
+                else:
+                    s = heapq.heappop(open_sets[0])
+                    expand_state(s)
+                    closed_anchor.add(s[1])
 
     
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.8
 
 import rospy
 from sensor_msgs.msg import LaserScan
@@ -7,8 +7,8 @@ from geometry_msgs.msg import PoseStamped
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from scipy.spatial import Voronoi, voronoi_plot_2d
 import matplotlib
-matplotlib.use('Agg')
-from matplotlib import pyplot as plt
+# matplotlib.use('Agg')
+# from matplotlib import pyplot as plt
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from vor_utils import *
 from visualization_msgs.msg import Marker
@@ -77,6 +77,15 @@ class ScanToGoal:
             y = round(y * 10 /2) *2
             points[i] = (x, y)
 
+        polygon = matplotlib.path.Path([start]+points)
+        new_points = []
+        for p in self.points:
+            if not polygon.contains_point(p):
+                new_points.append(p)
+        self.points = new_points
+
+
+
         self.points += points
         self.points = list(set(self.points))
 
@@ -85,14 +94,21 @@ class ScanToGoal:
 
         vor = Voronoi(tmp_points)
 
-        map = get_edge_map2(vor, start)
+        # map = get_edge_map2(vor, start)
+        map = get_edge_map(vor, start, goal)
 
-        # vor_vertices = np.append(vor.vertices, [[0,0]], axis=0)
-        vor_vertices = np.append(vor.vertices, [[start[0],start[1]]], axis=0)
-        vor_vertices = np.append(vor_vertices, [[goal[0], goal[1]]], axis=0)
-        start = len(vor.vertices)
-        goal = len(vor.vertices)+1
-        self.path = a_star(start, goal, map, vor_vertices, self.path)
+
+        # vor_vertices = np.append(vor.vertices, [[start[0],start[1]]], axis=0)
+        # vor_vertices = np.append(vor_vertices, [[goal[0], goal[1]]], axis=0)
+        # start = len(vor.vertices)
+        # goal = len(vor.vertices)+1
+
+        # self.path = a_star(start, goal, map, vor_vertices, self.path)
+
+        old_path = self.path
+        # self.path = closest_path(start, goal, map, old_path)
+        # if self.path is None:
+        self.path = astar(start, goal, map, old_path)
         
         if self.path == None: # clear obstacles from environment. Try to start again
             self.points = []
