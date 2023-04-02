@@ -5,8 +5,8 @@ import math
 import heapq
 # import matplotlib.pyplot as plt
 # import rospy
-# from nav_msgs.msg import Path
-# from geometry_msgs.msg import PoseStamped
+from nav_msgs.msg import Path
+from geometry_msgs.msg import PoseStamped
 import scipy.interpolate as interpolate
 # from sklearn.cluster import DBSCAN
 from scipy.spatial.distance import directed_hausdorff
@@ -122,24 +122,24 @@ def get_edge_map(vor, start, goal):
 #         name = "gif_images/"+str(i)
 #         plot(vor_list[i], points_list[i], path_list[i], start_list[i], False, True, name)
 
-# def create_ros_path(coords):
-#     path = Path()
-#     path.header.frame_id = 'odom'  # Set the frame ID for the path
+def create_ros_path(coords):
+    path = Path()
+    path.header.frame_id = 'odom'  # Set the frame ID for the path
 
-#     # Loop through the coordinates and add each one to the path as a PoseStamped message
-#     for coord in coords:
-#         pose = PoseStamped()
-#         pose.header.frame_id = 'odom'  # Set the frame ID for the pose
-#         pose.pose.position.x = coord[0]/10  # Set the x coordinate
-#         pose.pose.position.y = coord[1]/10  # Set the y coordinate
-#         pose.pose.position.z = 0.0  # Set the z coordinate to zero
-#         pose.pose.orientation.x = 0.0  # Set the orientation to zero
-#         pose.pose.orientation.y = 0.0
-#         pose.pose.orientation.z = 0.0
-#         pose.pose.orientation.w = 1.0
-#         path.poses.append(pose)
+    # Loop through the coordinates and add each one to the path as a PoseStamped message
+    for coord in coords:
+        pose = PoseStamped()
+        pose.header.frame_id = 'odom'  # Set the frame ID for the pose
+        pose.pose.position.x = coord[0]/10  # Set the x coordinate
+        pose.pose.position.y = coord[1]/10  # Set the y coordinate
+        pose.pose.position.z = 0.0  # Set the z coordinate to zero
+        pose.pose.orientation.x = 0.0  # Set the orientation to zero
+        pose.pose.orientation.y = 0.0
+        pose.pose.orientation.z = 0.0
+        pose.pose.orientation.w = 1.0
+        path.poses.append(pose)
 
-#     return path
+    return path
 
 
 def astar(start, goal, edges, old_path):
