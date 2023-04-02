@@ -52,9 +52,6 @@ def get_edge_map(vor, start, goal):
         point1 = tuple(points[pair[0]])
         point2 = tuple(points[pair[1]])
         gap = math.dist(point1, point2)
-        # set1 = clusters.get(point1, [point1])
-        # set2 = clusters.get(point2, [point2])
-        # gap = max(directed_hausdorff(set1, set2)[0], directed_hausdorff(set2, set1)[0])
 
         edge = edges[i]
         if (edge[0]==-1 or edge[1]==-1):
@@ -97,30 +94,6 @@ def get_edge_map(vor, start, goal):
         
     return map
 
-# def plot(vor, points, path, start, show, save, name):
-#     fig = voronoi_plot_2d(vor)
-#     plt.axis([-50, 50, -30, 70])
-
-#     rx = [p[0] for p in points]
-#     ry = [p[1] for p in points]
-#     plt.plot(rx, ry, 'ko')
-
-#     print(len(path), start)
-#     x = [p[0] for p in path]
-#     y = [p[1] for p in path]
-#     plt.plot(x, y, 'bo')
-#     plt.plot([start[0], 0], [start[1], 100], 'go')
-#     if show:
-#         plt.show()
-#     if save:
-#         print("saved in "+ name)
-#         plt.savefig(name)
-#         plt.close('all')
-
-# def save_images(vor_list, points_list, path_list, start_list):
-#     for i in range(len(vor_list)):
-#         name = "gif_images/"+str(i)
-#         plot(vor_list[i], points_list[i], path_list[i], start_list[i], False, True, name)
 
 def create_ros_path(coords):
     path = Path()
@@ -163,7 +136,7 @@ def astar(start, goal, edges, old_path):
         # explore the neighbors of the current node
         for neighbor, gap in edges.get(current, []):
             # check if the neighbor is already in the closed set
-            if neighbor in closed_set or gap < 4: # 5 is hard limit
+            if neighbor in closed_set or gap < 5: # 5 is hard limit
                 continue
             # if current!=start:
                 # prev = came_from[current] # discard if angle too sharp
@@ -173,31 +146,39 @@ def astar(start, goal, edges, old_path):
                 #     print("discarded")
                 #     continue
             # calculate the tentative g score for the neighbor
-            tentative_g = g[current] + manhattan_distance(current, neighbor)
+            tentative_g = g[current] + math.dist(current, neighbor)
             # check if we've already evaluated this neighbor
             if neighbor not in g or tentative_g < g[neighbor]:
                 # update the g and f scores for the neighbor
                 g[neighbor] = tentative_g
                 f[neighbor] = tentative_g + heuristic(neighbor, goal) + 800/gap
 
-                if old_path != None:
-                    d = distance_to_nearest_point(neighbor, old_path)
-                    x = len(came_from) +1
-                    f[neighbor] += d * 20 * math.exp(-1/5 * (x)) # adjust here
+                # if old_path != None:
+                #     d = distance_to_nearest_point(neighbor, old_path)
+                #     x = len(came_from) +1
+                #     f[neighbor] += d * 20 * math.exp(-1/5 * (x)) # adjust here
 
                 # update the path dictionary
-                came_from[neighbor] = current
+                came_from[neighbor] = (current, gap)
                 # add the neighbor to the open set
                 heapq.heappush(open_set, (f[neighbor], neighbor))
     # if we've exhausted all possible paths and haven't found the goal, return None
     return None
 
 def reconstruct_path(start, goal, came_from):
+    min_gap = 100
+    avg_gap = 0
+    count = 0
     path = [goal]
     while path[-1] != start:
-        path.append(came_from[path[-1]])
-    return list(reversed(path))
-
+        node, gap = came_from[path[-1]]
+        if gap < min_gap:
+            min_gap = gap
+        if gap < 50:
+            avg_gap += gap
+            count += 1
+        path.append(node)
+    return list(reversed(path)), avg_gap/count
 def heuristic(node, goal):
     # in this implementation, we use the Manhattan distance as the heuristic
     return manhattan_distance(node, goal)
@@ -330,3 +311,232 @@ def check_obstacles_distance(obstacle_points, path_points, distance_threshold):
             if distance < distance_threshold:
                 return False
     return True
+
+def check_obstacles(obstacle_points, path_points, threshold):
+    for op in obstacle_points:
+        for i in range(len(path_points) - 1):
+            midpoint = ((path_points[i][0] + path_points[i+1][0]) / 2, (path_points[i][1] + path_points[i+1][1]) / 2)
+            if math.dist(op, midpoint) < threshold:
+                return False
+    return True
+
+
+def check_obstacles2(obstacle_points, path_points, threshold):
+    # path_points = interpolate_path(path_points, 6)
+    for op in obstacle_points:
+        for i in range(len(path_points) - 1):
+            midpoint = ((path_points[i][0] + path_points[i+1][0]) / 2, (path_points[i][1] + path_points[i+1][1]) / 2)
+            # midpoint between path_points[i] and midpoint:
+            m1 = ((path_points[i][0] + midpoint[0]) / 2, (path_points[i][1] + midpoint[1]) / 2)
+            # midpoint between midpoint and path_points[i+1]:
+            m2 = ((midpoint[0] + path_points[i+1][0]) / 2, (midpoint[1] + path_points[i+1][1]) / 2)
+            for p in [m1, m2, midpoint, path_points[i+1]]:
+                if math.dist(op, p) < threshold:
+                    return False
+    return True
+
+def connect_start_to_path(start, old_path, edge_map):
+    min_dist = math.dist(start, old_path[0])
+    idx = 0
+    for i in range(1, len(old_path)):
+        dist = math.dist(start, old_path[i])
+        if dist < min_dist:
+            min_dist = dist
+        else:
+            if cosine_angle(old_path[i-1], start, old_path[i]) > 0: # acute angle
+                # p = closest_point(edge_map.get(start, []), old_path[i-1])
+                return old_path[i-1:]
+            else:
+                # p = closest_point(edge_map.get(start, []), old_path[i])
+                return old_path[i:]
+        
+        
+def cosine_angle(p1, p2, p3):
+    """
+    Calculates the cosine of the angle between the vectors formed by p1-p2 and p3-p2.
+    """
+    v1 = (p1[0]-p2[0], p1[1]-p2[1])
+    v2 = (p3[0]-p2[0], p3[1]-p2[1])
+    dot_product = v1[0]*v2[0] + v1[1]*v2[1]
+    mag_v1 = math.sqrt(v1[0]**2 + v1[1]**2)
+    mag_v2 = math.sqrt(v2[0]**2 + v2[1]**2)
+    cosine = dot_product / (mag_v1 * mag_v2)
+    return cosine
+
+
+
+
+def closest_points(start, old_path, edge_map):
+
+    old_path = old_path[2:]
+
+    min_distance = math.inf
+    closest_pair = None
+    idx = 0
+
+    points1 = edge_map.get(start, [])
+    points2 = old_path
+
+    for p1, gap in points1:
+        for i, p2 in enumerate(points2):
+            distance = math.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
+            if distance < min_distance:
+                min_distance = distance
+                closest_pair = (p1, p2)
+                idx = i
+
+    if cosine_angle(old_path[idx], start, old_path[idx+1]) > 0: # acute angle
+        return [start, closest_pair[0]]+old_path[idx:]
+    else:
+        p = closest_point(edge_map.get(start, []), old_path[i])
+        return [start, closest_pair[0]]+old_path[idx+1:]
+
+    # return [start, closest_pair[0]] + old_path[idx:]
+
+import math
+
+def closest_point(point_list, point):
+    min_distance = math.inf
+    closest = None
+
+    for p, gap in point_list:
+        distance = math.sqrt((point[0]-p[0])**2 + (point[1]-p[1])**2)
+        if distance < min_distance:
+            min_distance = distance
+            closest = p
+
+    return closest
+
+def closest_points(points1, points2):
+    min_distance = math.inf
+    closest_pair = None
+
+    for p1, gap in points1:
+        for i, p2 in enumerate(points2):
+            distance = math.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
+            if distance < min_distance:
+                min_distance = distance
+                closest_pair = (p1, i)
+
+    return closest_pair
+
+
+def bleh(start, old_path, edge_map):
+    point, idx = closest_points(edge_map.get(start, []), old_path)
+    if cosine_angle(old_path[idx], point, old_path[idx+1]) > 0: # acute angle
+        return [start, point]+old_path[idx:]
+    else:
+        return [start, point]+old_path[idx+1:]
+
+
+from scipy.spatial.distance import directed_hausdorff
+
+def smallest_hausdorff_distance_path(start, path, graph):
+    min_distance = float('inf')
+    closest_path = None
+    for graph_path in paths(graph, start, path[-1]):
+        distance = max(directed_hausdorff(path, graph_path)[0], directed_hausdorff(graph_path, path)[0])
+        if distance < min_distance:
+            min_distance = distance
+            closest_path = graph_path
+    return closest_path
+
+def paths(graph, start, end, path=[]):
+    path = path + [start]
+    if start == end:
+        return [path]
+    paths_list = []
+    for node, gap in graph[start]:
+        if node not in path:
+            new_paths = paths(graph, node, end, path)
+            for p in new_paths:
+                paths_list.append(p)
+    return paths_list
+
+
+def path_distance(points):
+    # initialize total distance to 0
+    total_distance = 0
+    
+    # iterate through the list of points, starting from the second point
+    for i in range(1, len(points)):
+        # calculate the distance between the current point and the previous point
+        distance = math.sqrt((points[i][0] - points[i-1][0])**2 + (points[i][1] - points[i-1][1])**2)
+        
+        # add the distance to the total distance
+        total_distance += distance
+    
+    # return the total distance
+    return total_distance
+
+
+def astar2(start, goal, edges, old_path):
+    # initialize the open and closed sets
+    open_set = [(0, start)]
+    closed_set = set()
+    # initialize the g and f scores
+    g = {start: 0}
+    f = {start: heuristic(start, goal)}
+    # initialize the dictionary to store the path
+    came_from = {}
+    # start the search
+    while open_set:
+        # get the node with the lowest f score
+        current_f, current = heapq.heappop(open_set)
+        # check if we've reached the goal
+        if current == goal:
+            return reconstruct_path(start, goal, came_from)
+        # add the current node to the closed set
+        closed_set.add(current)
+        # explore the neighbors of the current node
+        for neighbor, gap in edges.get(current, []):
+            # check if the neighbor is already in the closed set
+            if neighbor in closed_set or gap < 5: # 5 is hard limit
+                continue
+            # if current!=start:
+                # prev = came_from[current] # discard if angle too sharp
+                # cos_angle = cosine_angle(prev,neighbor, current)
+                # if cos_angle > -0.2 and gap < 4 and math.dist(prev, neighbor) < 7:
+                # # if cos_angle > -0.2:
+                #     print("discarded")
+                #     continue
+            # calculate the tentative g score for the neighbor
+            tentative_g = g[current] + manhattan_distance(current, neighbor)
+            # check if we've already evaluated this neighbor
+            if neighbor not in g or tentative_g < g[neighbor]:
+                # update the g and f scores for the neighbor
+
+                d = distance_to_nearest_point(neighbor, old_path)
+
+                g[neighbor] = tentative_g
+                f[neighbor] = tentative_g + heuristic(neighbor, goal) + d*50
+
+                # update the path dictionary
+                came_from[neighbor] = (current, gap)
+                # add the neighbor to the open set
+                heapq.heappush(open_set, (f[neighbor], neighbor))
+    # if we've exhausted all possible paths and haven't found the goal, return None
+    return None
+
+def distance_to_line_segment(point, segment):
+    x1, y1 = segment[0]
+    x2, y2 = segment[1]
+    px, py = point
+    dx = x2 - x1
+    dy = y2 - y1
+    dot_product = dx * (px - x1) + dy * (py - y1)
+    if dot_product < 0:
+        return math.sqrt((px - x1) ** 2 + (py - y1) ** 2)
+    length_squared = dx ** 2 + dy ** 2
+    if dot_product > length_squared:
+        return math.sqrt((px - x2) ** 2 + (py - y2) ** 2)
+    projection = (dot_product / length_squared)
+    x = x1 + projection * dx
+    y = y1 + projection * dy
+    return math.sqrt((px - x) ** 2 + (py - y) ** 2)
+
+def raytrace_clearing(obstacle_points, new_points):
+    for pt in new_points:
+        for obstacle in obstacle_points:
+            if distance_to_line_segment(obstacle, ((0,0),pt)) < 0.1 and math.dist((0,0), obstacle) < math.dist((0,0), pt):
+                obstacle_points.remove(obstacle)

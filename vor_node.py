@@ -16,6 +16,7 @@ from geometry_msgs.msg import Point
 import geometry_msgs.msg
 from smh_astar import *
 
+from scipy.spatial.distance import directed_hausdorff as hd
 
 
 class ScanToGoal:
@@ -34,6 +35,8 @@ class ScanToGoal:
         scan_sub = Subscriber('/scan', LaserScan)
         odom_sub = Subscriber('/enml_odometry', Odometry) # enml odom is frame odom
         self.path_pub = rospy.Publisher('/luisa_path', Path, queue_size=1)
+        self.other_path_pub = rospy.Publisher('/other_path', Path, queue_size=1)
+
         self.obstacle_viz = rospy.Publisher('obstacle_markers', Marker, queue_size=1)
         self.vertices_viz = rospy.Publisher('vor_vertices', Marker, queue_size=1)
         self.path_vertices = rospy.Publisher('path_vertices', Marker, queue_size=1)
@@ -84,13 +87,14 @@ class ScanToGoal:
             x = round(x  * 10 / 2) *2   # scale by 10, discretize by 2, make it an int
             y = round(y * 10 /2) *2
             points[i] = (x, y)
-
+        
         polygon = matplotlib.path.Path([start]+points)
         new_points = []
         for p in self.points:
             if not polygon.contains_point(p):
                 new_points.append(p)
         self.points = new_points
+        # raytrace_clearing(self.points, points)
 
 
 
@@ -105,30 +109,35 @@ class ScanToGoal:
         # map = get_edge_map2(vor, start)
         map = get_edge_map(vor, start, goal)
 
-
-        # vor_vertices = np.append(vor.vertices, [[start[0],start[1]]], axis=0)
-        # vor_vertices = np.append(vor_vertices, [[goal[0], goal[1]]], axis=0)
-        # start = len(vor.vertices)
-        # goal = len(vor.vertices)+1
-
-        # self.path = a_star(start, goal, map, vor_vertices, self.path)
-
         old_path = self.path
         # self.path = closest_path(start, goal, map, old_path)
         # if self.path is None:
-        self.path = astar(start, goal, map, old_path)
-        
-        if self.path == None: # clear obstacles from environment. Try to start again
+        result = astar(start, goal, map, None)
+
+        if result is None:
             self.points = []
             self.path = None
-            print("no feasible path")
             return
+        new_path, new_min_gap = result
 
-        # luisa_path = create_ros_path(smooth_curve(self.path))
-        luisa_path = create_ros_path(self.path)
-        
+        if old_path is not None and path_distance(old_path) < 1.05 * path_distance(new_path):
+            self.path, min_gap = astar2(start, goal, map, old_path)
+            if new_min_gap > 1.05* min_gap and len(old_path) >8:
+                self.path = new_path
+            luisa_path = create_ros_path(self.path)
+
+            # luisa_path = create_ros_path(old_path)
+        # if False: # if two valid paths, choose the shorter one
+        #     pass
+
+        else:
+            self.path = new_path
+            luisa_path = create_ros_path(self.path)
+
         # Publish the path message
         self.path_pub.publish(luisa_path)
+        self.other_path_pub.publish(create_ros_path(new_path))
+
 
         # clear viz
         marker = Marker()
@@ -145,8 +154,8 @@ class ScanToGoal:
         vertices = self.make_viz_message(vor.vertices, "blue", self.count)
         self.vertices_viz.publish(vertices)
 
-        # path_vertices = self.make_viz_message(self.path, "blue", self.count)
-        # self.path_vertices.publish(path_vertices)
+        path_vertices = self.make_viz_message(self.path, "blue", self.count)
+        self.path_vertices.publish(path_vertices)
 
         self.count+=1
 
