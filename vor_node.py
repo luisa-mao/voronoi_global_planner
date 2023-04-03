@@ -35,7 +35,8 @@ class ScanToGoal:
         scan_sub = Subscriber('/front/scan', LaserScan)
         odom_sub = Subscriber('/enml_odometry', Odometry) # enml odom is frame odom
         self.path_pub = rospy.Publisher('/luisa_path', Path, queue_size=1)
-        self.other_path_pub = rospy.Publisher('/other_path', Path, queue_size=1)
+        self.new_path_pub = rospy.Publisher('/other_path', Path, queue_size=1)
+        self.old_path_pub = rospy.Publisher('/old_path', Path, queue_size=1)
 
         self.obstacle_viz = rospy.Publisher('obstacle_markers', Marker, queue_size=1)
         self.vertices_viz = rospy.Publisher('vor_vertices', Marker, queue_size=1)
@@ -70,7 +71,7 @@ class ScanToGoal:
         increment = scan_msg.angle_increment
         ranges = scan_msg.ranges
 
-        points = ranges_to_coordinates(ranges, angle_min + yaw, increment)
+        points = ranges_to_coordinates2(ranges, angle_min + yaw, increment)
 
         for i in range(len(points)):
             x, y = points[i]
@@ -88,10 +89,19 @@ class ScanToGoal:
         self.points = new_points
         # raytrace_clearing(self.points, points)
 
+        points = ranges_to_coordinates(ranges, angle_min + yaw, increment)
 
+        for i in range(len(points)):
+            x, y = points[i]
+            x += -0.055 + shift_x # hardcoded laser -> base_link
+            y += shift_y
+            x = round(x  * 10 / 2) *2   # scale by 10, discretize by 2, make it an int
+            y = round(y * 10 /2) *2
+            points[i] = (x, y)
 
         self.points += points
         self.points = list(set(self.points))
+        # self.points = points
 
         # not sure how the ellipse will work on worlds where orientation seems flipped
         tmp_points = [goal, start] + self.points + generate_ellipse_arc(20, 15, math.pi/2+self.initial_yaw, 3*math.pi/2 + self.initial_yaw, 20)
@@ -110,11 +120,18 @@ class ScanToGoal:
             self.points = []
             self.path = None
             return
-        new_path, new_min_gap = result
+        new_path, new_avg_gap, new_min_gap = result
 
-        if old_path is not None and path_distance(old_path) < 1.05 * path_distance(new_path):
-            self.path, min_gap = astar2(start, goal, map, old_path)
-            if new_min_gap > 1.05* min_gap and len(old_path) >8:
+        old_path2 = None
+
+        if old_path is not None: #and path_distance(old_path) < 1.05 * path_distance(new_path):
+            self.path, avg_gap, min_gap = astar2(start, goal, map, connected_path(old_path))
+            old_path2 = self.path
+            p1 = connected_path(old_path)
+            p2 = connected_path(old_path2)
+            d = max(hd(p1, p2)[0], hd(p2, p1)[0])
+            if path_distance(new_path) < .8 * path_distance(self.path) or d > 5:
+            # if new_avg_gap > 1.2* avg_gap or ( new_avg_gap > 0.9 * avg_gap and path_distance(new_path) < .9 * path_distance(self.path)): #sum_cosines(new_path)<sum_cosines(self.path) or
                 self.path = new_path
             luisa_path = create_ros_path(self.path)
 
@@ -128,7 +145,9 @@ class ScanToGoal:
 
         # Publish the path message
         self.path_pub.publish(luisa_path)
-        self.other_path_pub.publish(create_ros_path(new_path))
+        self.new_path_pub.publish(create_ros_path(new_path))
+        if old_path2 is not None:
+            self.old_path_pub.publish(create_ros_path(old_path2))
 
 
         # clear viz

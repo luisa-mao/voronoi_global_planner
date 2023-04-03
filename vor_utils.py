@@ -24,6 +24,23 @@ def get_yaw(odom_msg):
     return yaw
 
 
+def ranges_to_coordinates2(ranges, angle_min, angle_increment):
+    """
+    Converts a list of LaserScan ranges to x-y coordinates.
+    """
+    coords = []
+    for i in range(len(ranges)):
+        angle = angle_min + i * angle_increment
+        if not math.isinf(ranges[i]):
+            x = (ranges[i] + 0.5) * math.cos(angle)
+            y = (ranges[i] + 0.5) * math.sin(angle)
+            coords.append((x, y))
+        else:
+            x = 5 * math.cos(angle)
+            y = 5 * math.sin(angle)
+            coords.append((x, y))
+    return coords
+
 def ranges_to_coordinates(ranges, angle_min, angle_increment):
     """
     Converts a list of LaserScan ranges to x-y coordinates.
@@ -36,6 +53,8 @@ def ranges_to_coordinates(ranges, angle_min, angle_increment):
             y = ranges[i] * math.sin(angle)
             coords.append((x, y))
     return coords
+
+
 
 def get_edge_map(vor, start, goal):
 
@@ -174,11 +193,11 @@ def reconstruct_path(start, goal, came_from):
         node, gap = came_from[path[-1]]
         if gap < min_gap:
             min_gap = gap
-        if gap < 50:
+        if gap < 100:
             avg_gap += gap
             count += 1
         path.append(node)
-    return list(reversed(path)), avg_gap/count
+    return list(reversed(path)), avg_gap/count, min_gap
 def heuristic(node, goal):
     # in this implementation, we use the Manhattan distance as the heuristic
     return manhattan_distance(node, goal)
@@ -363,7 +382,15 @@ def cosine_angle(p1, p2, p3):
     cosine = dot_product / (mag_v1 * mag_v2)
     return cosine
 
-
+def sum_cosines(points):
+    """
+    Takes a list of coordinate points and returns the sum of the absolute values of all the cosines in the path.
+    """
+    sum_cos = 0
+    for i in range(len(points)-3):
+        p1, p2, p3 = points[i], points[i+1], points[i+2]
+        sum_cos += cosine_angle(p1, p2, p3) +1
+    return sum_cos/ (len(points))
 
 
 def closest_points(start, old_path, edge_map):
