@@ -112,9 +112,13 @@ class ScanToGoal:
             return
         new_path, new_min_gap = result
 
-        if old_path is not None and path_distance(old_path) < 1.05 * path_distance(new_path):
+        if old_path is not None :#and path_distance(old_path) < 1.05 * path_distance(new_path):
             self.path, min_gap = astar2(start, goal, map, old_path)
-            if new_min_gap > 1.05* min_gap and len(old_path) >8:
+            p1 = connected_path(old_path)
+            p2 = connected_path(self.path)
+            d = max(hd(p1, p2)[0], hd(p2, p1)[0])
+
+            if path_distance(new_path) < path_distance(self.path) or d > 5:#or new_min_gap > 1.05* min_gap and len(old_path) >8 or d > 5:
                 self.path = new_path
             luisa_path = create_ros_path(self.path)
 

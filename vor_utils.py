@@ -151,7 +151,7 @@ def astar(start, goal, edges, old_path):
             if neighbor not in g or tentative_g < g[neighbor]:
                 # update the g and f scores for the neighbor
                 g[neighbor] = tentative_g
-                f[neighbor] = tentative_g + heuristic(neighbor, goal) + 800/gap
+                f[neighbor] = 800/gap#tentative_g #+ heuristic(neighbor, goal) + 800/gap
 
                 # if old_path != None:
                 #     d = distance_to_nearest_point(neighbor, old_path)
