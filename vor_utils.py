@@ -37,6 +37,24 @@ def ranges_to_coordinates(ranges, angle_min, angle_increment):
             coords.append((x, y))
     return coords
 
+def ranges_to_coordinates2(ranges, angle_min, angle_increment):
+    """
+    Converts a list of LaserScan ranges to x-y coordinates.
+    """
+    coords = []
+    for i in range(len(ranges)):
+        angle = angle_min + i * angle_increment
+        if not math.isinf(ranges[i]):
+            x = (ranges[i]+.005) * math.cos(angle)
+            y = (ranges[i]+.005) * math.sin(angle)
+            coords.append((x, y))
+        else:
+            x = 5 * math.cos(angle)
+            y = 5 * math.sin(angle)
+            coords.append((x, y))
+    return coords
+
+
 def get_edge_map(vor, start, goal):
 
     map = {}
@@ -459,7 +477,8 @@ def path_distance(points):
     total_distance = 0
     
     # iterate through the list of points, starting from the second point
-    for i in range(1, len(points)):
+    for i in range(0, len(points)):
+
         # calculate the distance between the current point and the previous point
         distance = math.sqrt((points[i][0] - points[i-1][0])**2 + (points[i][1] - points[i-1][1])**2)
         
