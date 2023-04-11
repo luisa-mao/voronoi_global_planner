@@ -85,7 +85,7 @@ class ScanToGoal:
         increment = scan_msg.angle_increment
         ranges = scan_msg.ranges
 
-        points = ranges_to_coordinates(ranges, angle_min + yaw, increment)
+        points = ranges_to_coordinates2(ranges, angle_min + yaw, increment)
 
         for i in range(len(points)):
             x, y = points[i]
@@ -103,7 +103,15 @@ class ScanToGoal:
         self.points = new_points
         # raytrace_clearing(self.points, points)
 
+        points = ranges_to_coordinates(ranges, angle_min + yaw, increment)
 
+        for i in range(len(points)):
+            x, y = points[i]
+            x += -0.055 + shift_x # hardcoded laser -> base_link
+            y += shift_y
+            x = round(x  * 10 / 2) *2   # scale by 10, discretize by 2, make it an int
+            y = round(y * 10 /2) *2
+            points[i] = (x, y)
 
         self.points += points
         self.points = list(set(self.points))
@@ -125,11 +133,14 @@ class ScanToGoal:
             self.points = []
             self.path = None
             return
-        new_path, new_min_gap = result
+        new_path, new_avg_gap = result
 
-        if old_path is not None and path_distance(old_path) < 1.05 * path_distance(new_path):
-            self.path, min_gap = astar2(start, goal, map, old_path)
-            if new_min_gap > 1.05* min_gap and len(old_path) >8:
+        if old_path is not None: #and path_distance(old_path) < 1.05 * path_distance(new_path):
+            p1 = connected_path(old_path)
+            self.path, avg_gap = astar2(start, goal, map, p1)
+            p2 = connected_path(self.path)
+            d = max(hd(p1, p2)[0], hd(p2, p1)[0])
+            if new_avg_gap > 1.05* avg_gap and len(old_path) >8 or d>5 or (path_distance(new_path) < 0.8*path_distance(old_path) and new_avg_gap > 0.95*avg_gap):
                 self.path = new_path
             luisa_path = create_ros_path(self.path)
 
