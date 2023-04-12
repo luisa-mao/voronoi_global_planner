@@ -54,6 +54,27 @@ def ranges_to_coordinates2(ranges, angle_min, angle_increment):
             coords.append((x, y))
     return coords
 
+import matplotlib
+def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shift_y):
+    start = (shift_x*10, shift_y*10)
+    points = ranges_to_coordinates2(ranges, angle_min, increment)
+
+    for i in range(len(points)):
+        x, y = points[i]
+        x += -0.055 + shift_x # hardcoded laser -> base_link
+        y += shift_y
+        x = round(x  * 10 / 2) *2   # scale by 10, discretize by 2, make it an int
+        y = round(y * 10 /2) *2
+        points[i] = (x, y)
+    
+    polygon = matplotlib.path.Path([start]+points)
+    new_points = []
+    for p in old_obstacles:
+        if not polygon.contains_point(p):
+            new_points.append(p)
+    return new_points
+
+
 
 def get_edge_map(vor, start, goal):
 
@@ -154,7 +175,7 @@ def astar(start, goal, edges, old_path):
         # explore the neighbors of the current node
         for neighbor, gap in edges.get(current, []):
             # check if the neighbor is already in the closed set
-            if neighbor in closed_set or gap < 5: # 5 is hard limit
+            if neighbor in closed_set or gap < 4.5: # 5 is hard limit
                 continue
             # if current!=start:
                 # prev = came_from[current] # discard if angle too sharp
@@ -313,7 +334,7 @@ def path_distance(points):
     return total_distance
 
 
-def astar2(start, goal, edges, old_path):
+def copy_astar_path(start, goal, edges, old_path):
     # initialize the open and closed sets
     open_set = [(0, start)]
     closed_set = set()
@@ -334,7 +355,7 @@ def astar2(start, goal, edges, old_path):
         # explore the neighbors of the current node
         for neighbor, gap in edges.get(current, []):
             # check if the neighbor is already in the closed set
-            if neighbor in closed_set or gap < 5: # 5 is hard limit
+            if neighbor in closed_set or gap < 4.5: # 5 is hard limit
                 continue
             # if current!=start:
                 # prev = came_from[current] # discard if angle too sharp

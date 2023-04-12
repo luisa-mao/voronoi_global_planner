@@ -63,30 +63,11 @@ class ScanToGoal:
 
         goal = (100*math.cos(self.initial_yaw),100* math.sin(self.initial_yaw))
 
-        # print(start)
-        # print(shift_x, shift_y)
-
         angle_min = scan_msg.angle_min
         increment = scan_msg.angle_increment
         ranges = scan_msg.ranges
 
-        points = ranges_to_coordinates2(ranges, angle_min + yaw, increment)
-
-        for i in range(len(points)):
-            x, y = points[i]
-            x += -0.055 + shift_x # hardcoded laser -> base_link
-            y += shift_y
-            x = round(x  * 10 / 2) *2   # scale by 10, discretize by 2, make it an int
-            y = round(y * 10 /2) *2
-            points[i] = (x, y)
-        
-        polygon = matplotlib.path.Path([start]+points)
-        new_points = []
-        for p in self.points:
-            if not polygon.contains_point(p):
-                new_points.append(p)
-        self.points = new_points
-        # raytrace_clearing(self.points, points)
+        self.points = correct_obstacles(self.points, ranges, angle_min + yaw, increment, shift_x, shift_y)
 
         points = ranges_to_coordinates(ranges, angle_min + yaw, increment)
 
@@ -122,7 +103,7 @@ class ScanToGoal:
 
         if old_path is not None: #and path_distance(old_path) < 1.05 * path_distance(new_path):
             p1 = connected_path(old_path)
-            self.path, avg_gap = astar2(start, goal, map, p1)
+            self.path, avg_gap = copy_astar_path(start, goal, map, p1)
             p2 = connected_path(self.path)
             d = max(hd(p1, p2)[0], hd(p2, p1)[0])
             if new_avg_gap > 1.05* avg_gap and len(old_path) >8 or d>5 or (path_distance(new_path) < 0.8*path_distance(old_path) and new_avg_gap > 0.95*avg_gap):
