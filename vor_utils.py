@@ -3,14 +3,11 @@ import numpy as np
 import random
 import math
 import heapq
-# import matplotlib.pyplot as plt
-# import rospy
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
 import scipy.interpolate as interpolate
-# from sklearn.cluster import DBSCAN
 from scipy.spatial.distance import directed_hausdorff
-# from sklearn.linear_model import RANSACRegressor
+import matplotlib
 
 
 def get_yaw(odom_msg):
@@ -54,11 +51,7 @@ def ranges_to_coordinates2(ranges, angle_min, angle_increment):
             coords.append((x, y))
     return coords
 
-import matplotlib
-def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shift_y):
-    start = (shift_x*10, shift_y*10)
-    points = ranges_to_coordinates2(ranges, angle_min, increment)
-
+def translate_and_scale(points, shift_x, shift_y):
     for i in range(len(points)):
         x, y = points[i]
         x += -0.055 + shift_x # hardcoded laser -> base_link
@@ -66,7 +59,11 @@ def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shif
         x = round(x  * 10 / 2) *2   # scale by 10, discretize by 2, make it an int
         y = round(y * 10 /2) *2
         points[i] = (x, y)
-    
+    return points
+
+def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shift_y):
+    start = (shift_x*10, shift_y*10)
+    points = translate_and_scale(ranges_to_coordinates2(ranges, angle_min, increment), shift_x, shift_y)
     polygon = matplotlib.path.Path([start]+points)
     new_points = []
     for p in old_obstacles:

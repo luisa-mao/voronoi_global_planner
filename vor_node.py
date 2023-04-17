@@ -61,7 +61,7 @@ class ScanToGoal:
             self.initial_yaw = yaw
             self.start = start
 
-        goal = (100*math.cos(self.initial_yaw),100* math.sin(self.initial_yaw))
+        goal = (100*math.cos(self.initial_yaw)+self.start[0],100* math.sin(self.initial_yaw)+self.start[1])
 
         angle_min = scan_msg.angle_min
         increment = scan_msg.angle_increment
@@ -69,15 +69,8 @@ class ScanToGoal:
 
         self.points = correct_obstacles(self.points, ranges, angle_min + yaw, increment, shift_x, shift_y)
 
-        points = ranges_to_coordinates(ranges, angle_min + yaw, increment)
+        points = translate_and_scale(ranges_to_coordinates(ranges, angle_min + yaw, increment), shift_x, shift_y)
 
-        for i in range(len(points)):
-            x, y = points[i]
-            x += -0.055 + shift_x # hardcoded laser -> base_link
-            y += shift_y
-            x = round(x  * 10 / 2) *2   # scale by 10, discretize by 2, make it an int
-            y = round(y * 10 /2) *2
-            points[i] = (x, y)
 
         self.points += points
         self.points = list(set(self.points))
