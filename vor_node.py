@@ -16,6 +16,10 @@ from geometry_msgs.msg import Point
 import geometry_msgs.msg
 from smh_astar import *
 
+import roslib
+roslib.load_manifest('amrl_msgs')
+from amrl_msgs.msg import VisualizationMsg, ColoredPoint2D
+
 from scipy.spatial.distance import directed_hausdorff as hd
 
 
@@ -32,7 +36,7 @@ class ScanToGoal:
 
 
         # Create subscribers and publishers
-        scan_sub = Subscriber('/front/scan', LaserScan)
+        scan_sub = Subscriber('front/scan', LaserScan)
         odom_sub = Subscriber('/enml_odometry', Odometry) # enml odom is frame odom
         self.path_pub = rospy.Publisher('/luisa_path', Path, queue_size=1)
         self.other_path_pub = rospy.Publisher('/other_path', Path, queue_size=1)
@@ -40,6 +44,11 @@ class ScanToGoal:
         self.obstacle_viz = rospy.Publisher('obstacle_markers', Marker, queue_size=1)
         self.vertices_viz = rospy.Publisher('vor_vertices', Marker, queue_size=1)
         self.path_vertices = rospy.Publisher('path_vertices', Marker, queue_size=1)
+        self.goal_subscriber = rospy.Subscriber('/move_base_simple/goal', PoseStamped, self.get_goal)
+
+        self.webviz_viz_publisher = rospy.Publisher("/visualization", VisualizationMsg, queue_size=1)
+
+        self.goal = None
 
         # Synchronize the scan and odom messages
         ts = ApproximateTimeSynchronizer([scan_sub, odom_sub], queue_size=1, slop=0.1)
@@ -47,7 +56,12 @@ class ScanToGoal:
 
         rospy.spin()
 
+    def get_goal(self, goal: PoseStamped):
+        self.goal = (goal.pose.position.x, goal.pose.position.y)
+
     def scan_odom_callback(self, scan_msg, odom_msg):
+        # if type(self.goal) == type(None):
+        #     return
         print("scan odom callback")
         # print(scan_msg.header)
 
@@ -61,15 +75,16 @@ class ScanToGoal:
             self.initial_yaw = yaw
             self.start = start
 
+        # self.goal = None
         goal = (100*math.cos(self.initial_yaw)+self.start[0],100* math.sin(self.initial_yaw)+self.start[1])
 
         angle_min = scan_msg.angle_min
         increment = scan_msg.angle_increment
         ranges = scan_msg.ranges
 
-        self.points = correct_obstacles(self.points, ranges, angle_min + yaw, increment, shift_x, shift_y)
+        self.points = correct_obstacles(self.points, ranges, angle_min + yaw, increment, shift_x, shift_y, yaw)
 
-        points = translate_and_scale(ranges_to_coordinates(ranges, angle_min + yaw, increment), shift_x, shift_y)
+        points = translate_and_scale(ranges_to_coordinates(ranges, angle_min + yaw, increment, yaw), shift_x, shift_y)
 
 
         self.points += points
@@ -132,9 +147,30 @@ class ScanToGoal:
         self.vertices_viz.publish(vertices)
 
         path_vertices = self.make_viz_message(self.path, "blue", self.count)
+        
+        # publish to webviz
+        self.publish_message(tmp_points, 16711680, "vertices")
+        self.publish_message(self.path, 65280, "vor_path")
+
         self.path_vertices.publish(path_vertices)
 
         self.count+=1
+
+    def publish_message(self, points, color, namespace):
+        visualization = VisualizationMsg()
+        visualization.header.stamp = rospy.Time.now()
+        visualization.header.frame_id = "map"
+
+        visualization.ns = namespace 
+        for point in points:
+            p = ColoredPoint2D()
+            p.point.x = point[0]/10
+            p.point.y = point[1]/10
+
+            p.color = color
+
+            visualization.points.append(p)
+        self.webviz_viz_publisher.publish(visualization)
 
     def make_viz_message(self, points, color, id):
         # Create marker

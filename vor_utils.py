@@ -21,26 +21,31 @@ def get_yaw(odom_msg):
     return yaw
 
 
-def ranges_to_coordinates(ranges, angle_min, angle_increment):
+def ranges_to_coordinates(ranges, angle_min, angle_increment, yaw):
     """
     Converts a list of LaserScan ranges to x-y coordinates.
     """
     coords = []
     for i in range(len(ranges)):
         angle = angle_min + i * angle_increment
+        if angle < -2.3561899662017822+yaw or angle > 2.3561899662017822+yaw:
+            continue
+
         if not math.isinf(ranges[i]):
             x = ranges[i] * math.cos(angle)
             y = ranges[i] * math.sin(angle)
             coords.append((x, y))
     return coords
 
-def ranges_to_coordinates2(ranges, angle_min, angle_increment):
+def ranges_to_coordinates2(ranges, angle_min, angle_increment, yaw):
     """
     Converts a list of LaserScan ranges to x-y coordinates.
     """
     coords = []
     for i in range(len(ranges)):
         angle = angle_min + i * angle_increment
+        if angle < -2.3561899662017822+yaw or angle > 2.3561899662017822+yaw:
+            continue
         if not math.isinf(ranges[i]):
             x = (ranges[i]+.005) * math.cos(angle)
             y = (ranges[i]+.005) * math.sin(angle)
@@ -61,9 +66,9 @@ def translate_and_scale(points, shift_x, shift_y):
         points[i] = (x, y)
     return points
 
-def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shift_y):
+def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shift_y, yaw):
     start = (shift_x*10, shift_y*10)
-    points = translate_and_scale(ranges_to_coordinates2(ranges, angle_min, increment), shift_x, shift_y)
+    points = translate_and_scale(ranges_to_coordinates2(ranges, angle_min, increment, yaw), shift_x, shift_y)
     polygon = matplotlib.path.Path([start]+points)
     new_points = []
     for p in old_obstacles:
