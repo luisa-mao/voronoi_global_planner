@@ -21,6 +21,7 @@ roslib.load_manifest('amrl_msgs')
 from amrl_msgs.msg import VisualizationMsg, ColoredPoint2D
 
 from scipy.spatial.distance import directed_hausdorff as hd
+import yaml 
 
 
 class ScanToGoal:
@@ -36,7 +37,7 @@ class ScanToGoal:
 
 
         # Create subscribers and publishers
-        scan_sub = Subscriber('front/scan', LaserScan)
+        scan_sub = Subscriber('/scan', LaserScan)
         odom_sub = Subscriber('/enml_odometry', Odometry) # enml odom is frame odom
         self.path_pub = rospy.Publisher('/luisa_path', Path, queue_size=1)
         self.other_path_pub = rospy.Publisher('/other_path', Path, queue_size=1)
@@ -54,14 +55,22 @@ class ScanToGoal:
         ts = ApproximateTimeSynchronizer([scan_sub, odom_sub], queue_size=1, slop=0.1)
         ts.registerCallback(self.scan_odom_callback)
 
+        with open('config/params.yaml', 'r') as f:
+            self.config = yaml.safe_load(f)
+
+        self.rate = rospy.Rate(10)
         rospy.spin()
 
     def get_goal(self, goal: PoseStamped):
         self.goal = (goal.pose.position.x, goal.pose.position.y)
 
     def scan_odom_callback(self, scan_msg, odom_msg):
-        # if type(self.goal) == type(None):
-        #     return
+        x_scale = 10
+        # self.config["velodyne_transform"]["x"]
+        y_scale = 10
+        # self.config["velodyne_transform"]["y"]
+        if type(self.goal) == type(None):
+            return
         print("scan odom callback")
         # print(scan_msg.header)
 
@@ -69,29 +78,31 @@ class ScanToGoal:
         yaw = get_yaw(odom_msg)
         shift_x = odom_msg.pose.pose.position.x
         shift_y = odom_msg.pose.pose.position.y
-        start = (shift_x * 10 , shift_y * 10)
+        start = (shift_x * x_scale, shift_y * y_scale)
 
         if self.count ==0: # short term hack
             self.initial_yaw = yaw
             self.start = start
 
         # self.goal = None
-        goal = (100*math.cos(self.initial_yaw)+self.start[0],100* math.sin(self.initial_yaw)+self.start[1])
+        goal = (self.goal[0] * x_scale, self.goal[1] * y_scale)
+        # goal = (10*x_scale*math.cos(self.initial_yaw)+self.start[0],10*y_scale* math.sin(self.initial_yaw)+self.start[1])
 
         angle_min = scan_msg.angle_min
         increment = scan_msg.angle_increment
         ranges = scan_msg.ranges
+        # self.points = correct_obstacles(self.points, ranges, angle_min + yaw, increment, shift_x, shift_y, yaw)
 
-        self.points = correct_obstacles(self.points, ranges, angle_min + yaw, increment, shift_x, shift_y, yaw)
-
-        points = translate_and_scale(ranges_to_coordinates(ranges, angle_min + yaw, increment, yaw), shift_x, shift_y)
+        points = translate_and_scale(ranges_to_coordinates(ranges, angle_min, increment, yaw), shift_x, shift_y)
 
 
         self.points += points
         self.points = list(set(self.points))
 
         # not sure how the ellipse will work on worlds where orientation seems flipped
-        tmp_points = [goal, start] + self.points + generate_ellipse_arc(20, 15, math.pi/2+self.initial_yaw, 3*math.pi/2 + self.initial_yaw, 20)
+
+        tmp_points = [goal, start] + self.points 
+        # \ + generate_ellipse_arc(20, 15, math.pi/2+self.initial_yaw, 3*math.pi/2 + self.initial_yaw, 20)
 
         vor = Voronoi(tmp_points)
 
@@ -102,10 +113,16 @@ class ScanToGoal:
         # self.path = closest_path(start, goal, map, old_path)
         # if self.path is None:
         result = astar(start, goal, map, None)
+        print("result: ", result)
 
         if result is None:
             self.points = []
             self.path = None
+            vertices = self.make_viz_message(vor.vertices, "blue", self.count)
+            self.vertices_viz.publish(vertices)
+            obs = self.make_viz_message(tmp_points, "white", self.count)
+            self.obstacle_viz.publish(obs)
+            self.rate.sleep()
             return
         new_path, new_avg_gap = result
 
