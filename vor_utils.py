@@ -385,3 +385,17 @@ def copy_astar_path(start, goal, edges, old_path):
                 heapq.heappush(open_set, (f[neighbor], neighbor))
     # if we've exhausted all possible paths and haven't found the goal, return None
     return None
+
+def generate_circle_points(center, radius, num):
+    circle_points = []
+    for i in range(num):
+        angle = math.radians(i * (360.0 / num))
+        x = center[0] + (radius * math.cos(angle))
+        y = center[1] + (radius * math.sin(angle))
+        circle_points.append((x, y))
+    return circle_points
+
+def switch_plan(new_avg_gap, avg_gap, old_path, new_path, d):
+    return new_avg_gap > 1.05* avg_gap and len(old_path) >8 \
+    or d>5 \
+    or (path_distance(new_path) < 0.8*path_distance(old_path) and new_avg_gap > 0.95*avg_gap)

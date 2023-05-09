@@ -34,6 +34,7 @@ class ScanToGoal:
         self.path = None
         self.initial_yaw  = 0
         self.start = None
+        self.circle = None
 
 
         # Create subscribers and publishers
@@ -83,6 +84,7 @@ class ScanToGoal:
         if self.count ==0: # short term hack
             self.initial_yaw = yaw
             self.start = start
+            self.circle = generate_circle_points(start, 100, 100)
 
         # self.goal = None
         goal = (self.goal[0] * x_scale, self.goal[1] * y_scale)
@@ -101,7 +103,7 @@ class ScanToGoal:
 
         # not sure how the ellipse will work on worlds where orientation seems flipped
 
-        tmp_points = [goal, start] + self.points 
+        tmp_points = [goal, start] + self.points + generate_circle_points(start, 100, 100)#+ self.circle
         # \ + generate_ellipse_arc(20, 15, math.pi/2+self.initial_yaw, 3*math.pi/2 + self.initial_yaw, 20)
 
         vor = Voronoi(tmp_points)
@@ -131,7 +133,7 @@ class ScanToGoal:
             self.path, avg_gap = copy_astar_path(start, goal, map, p1)
             p2 = connected_path(self.path)
             d = max(hd(p1, p2)[0], hd(p2, p1)[0])
-            if new_avg_gap > 1.05* avg_gap and len(old_path) >8 or d>5 or (path_distance(new_path) < 0.8*path_distance(old_path) and new_avg_gap > 0.95*avg_gap):
+            if switch_plan(new_avg_gap, avg_gap, old_path, new_path, d):
                 self.path = new_path
             luisa_path = create_ros_path(self.path)
 
