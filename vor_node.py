@@ -30,6 +30,7 @@ class ScanToGoal:
         rospy.init_node('scan_to_goal')
         self.count = 0
         self.points = []
+        self.point_map = {}
 
         self.path = None
         self.initial_yaw  = 0
@@ -37,8 +38,11 @@ class ScanToGoal:
         self.circle = None
 
 
+        with open('config/params.yaml', 'r') as f:
+            self.config = yaml.safe_load(f)
+
         # Create subscribers and publishers
-        scan_sub = Subscriber('/scan', LaserScan)
+        scan_sub = Subscriber('/front/scan', LaserScan) if self.config["simulation"] else Subscriber('/scan', LaserScan)
         odom_sub = Subscriber('/enml_odometry', Odometry) # enml odom is frame odom
         self.path_pub = rospy.Publisher('/luisa_path', Path, queue_size=1)
         self.other_path_pub = rospy.Publisher('/other_path', Path, queue_size=1)
@@ -56,9 +60,6 @@ class ScanToGoal:
         ts = ApproximateTimeSynchronizer([scan_sub, odom_sub], queue_size=1, slop=0.1)
         ts.registerCallback(self.scan_odom_callback)
 
-        with open('config/params.yaml', 'r') as f:
-            self.config = yaml.safe_load(f)
-
         self.rate = rospy.Rate(10)
         rospy.spin()
 
@@ -70,7 +71,7 @@ class ScanToGoal:
         # self.config["velodyne_transform"]["x"]
         y_scale = 10
         # self.config["velodyne_transform"]["y"]
-        if type(self.goal) == type(None):
+        if not self.config["simulation"] and type(self.goal) == type(None):
             return
         print("scan odom callback")
         # print(scan_msg.header)
@@ -87,15 +88,16 @@ class ScanToGoal:
             self.circle = generate_circle_points(start, 100, 100)
 
         # self.goal = None
-        goal = (self.goal[0] * x_scale, self.goal[1] * y_scale)
-        # goal = (10*x_scale*math.cos(self.initial_yaw)+self.start[0],10*y_scale* math.sin(self.initial_yaw)+self.start[1])
+        goal = (self.goal[0] * x_scale, self.goal[1] * y_scale) if not self.config["simulation"] else \
+            (10*x_scale*math.cos(self.initial_yaw)+self.start[0],10*y_scale* math.sin(self.initial_yaw)+self.start[1])
 
         angle_min = scan_msg.angle_min
         increment = scan_msg.angle_increment
         ranges = scan_msg.ranges
-        # self.points = correct_obstacles(self.points, ranges, angle_min + yaw, increment, shift_x, shift_y, yaw)
+        if (self.config["simulation"]):
+            self.points = correct_obstacles(self.points, ranges, angle_min + yaw, increment, shift_x, shift_y, yaw)
 
-        points = translate_and_scale(ranges_to_coordinates(ranges, angle_min, increment, yaw), shift_x, shift_y)
+        points, self.point_map = translate_and_scale(ranges_to_coordinates(ranges, angle_min, increment, yaw), shift_x, shift_y, self.point_map)
 
 
         self.points += points
@@ -103,18 +105,26 @@ class ScanToGoal:
 
         # not sure how the ellipse will work on worlds where orientation seems flipped
 
-        tmp_points = [goal, start] + self.points + generate_circle_points(start, 100, 100)#+ self.circle
+        circle_points = generate_circle_points(start, 100, 100)
+        tmp_points = [goal, start] + self.points + circle_points #+ self.circle
         # \ + generate_ellipse_arc(20, 15, math.pi/2+self.initial_yaw, 3*math.pi/2 + self.initial_yaw, 20)
+        self.point_map.setdefault(goal, set()).add(goal)
+        self.point_map.setdefault(start, set()).add(start)
+
+
+        # for elem in tmp_points:
+        #     assert elem in self.point_map.keys(), f"{elem} is not a key in the dictionary"
+
 
         vor = Voronoi(tmp_points)
 
         # map = get_edge_map2(vor, start)
-        map = get_edge_map(vor, start, goal)
+        map = get_edge_map(vor, start, goal, self.point_map, circle_points)
 
         old_path = self.path
         # self.path = closest_path(start, goal, map, old_path)
         # if self.path is None:
-        result = astar(start, goal, map, None)
+        result = astar(start, goal, map)
         print("result: ", result)
 
         if result is None:

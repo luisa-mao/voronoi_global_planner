@@ -5,6 +5,7 @@ angle_filter:
   min_angle: 0
   max_angle: 0
 hallucinate_obstacles: False
+simulation: False
 resolution: 0.1
 switching_cond:
   gap_size_hysteresis: 1.05

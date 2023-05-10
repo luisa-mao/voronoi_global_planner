@@ -8,6 +8,16 @@ from geometry_msgs.msg import PoseStamped
 import scipy.interpolate as interpolate
 from scipy.spatial.distance import directed_hausdorff
 import matplotlib
+from scipy.spatial.distance import cdist
+import yaml
+
+
+# Load the YAML file
+with open("config/params.yaml", 'r') as stream:
+    try:
+        params = yaml.safe_load(stream)
+    except yaml.YAMLError as e:
+        print(e)
 
 
 def get_yaw(odom_msg):
@@ -58,15 +68,17 @@ def ranges_to_coordinates2(ranges, angle_min, angle_increment, yaw):
             coords.append((x, y))
     return coords
 
-def translate_and_scale(points, shift_x, shift_y):
+def translate_and_scale(points, shift_x, shift_y, map, discretization = 2):
     for i in range(len(points)):
         x, y = points[i]
         x += -0.055 + shift_x # hardcoded laser -> base_link
         y += shift_y
-        x = round(x  * 10 / 2) *2   # scale by 10, discretize by 2, make it an int
-        y = round(y * 10 /2) *2
+        (a, b) = (round(x*10), round(y*10))
+        x = round(x  * 10 / discretization) *discretization   # scale by 10, discretize by 2, make it an int
+        y = round(y * 10 /discretization) *discretization
         points[i] = (x, y)
-    return points
+        map.setdefault((x, y), set()).add((a, b))
+    return points, map
 
 def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shift_y, yaw):
     start = (shift_x*10, shift_y*10)
@@ -78,10 +90,24 @@ def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shif
             new_points.append(p)
     return new_points
 
+def get_min_dist(points1, points2):
+    min_dist = 100000000
+    for p1 in points1:
+        for p2 in points2:
+            dist = math.dist(p1, p2)
+            if dist < min_dist:
+                min_dist = dist
+    return min_dist
+
+def get_gap(point_map, point1, point2):
+    points1 = point_map[point1]
+    points2 = point_map[point2]
+    return get_min_dist(points1, points2)
 
 
-def get_edge_map(vor, start, goal):
 
+def get_edge_map(vor, start, goal, point_map, circle_points = set()):
+    circle_points = set(circle_points)
     map = {}
     ridge_points = vor.ridge_points
     edges = vor.ridge_vertices
@@ -94,7 +120,12 @@ def get_edge_map(vor, start, goal):
 
         point1 = tuple(points[pair[0]])
         point2 = tuple(points[pair[1]])
-        gap = math.dist(point1, point2)
+        # gap = math.dist(point1, point2)
+
+        points1 = point_map.get(point1, [point1])
+        points2 = point_map.get(point2, [point2])
+
+        gap = get_min_dist(points1, points2)
 
         edge = edges[i]
         if (edge[0]==-1 or edge[1]==-1):
@@ -158,7 +189,7 @@ def create_ros_path(coords):
     return path
 
 
-def astar(start, goal, edges, old_path):
+def astar(start, goal, edges):
     # initialize the open and closed sets
     open_set = [(0, start)]
     closed_set = set()
@@ -181,13 +212,6 @@ def astar(start, goal, edges, old_path):
             # check if the neighbor is already in the closed set
             if neighbor in closed_set or gap < 4.5: # 5 is hard limit
                 continue
-            # if current!=start:
-                # prev = came_from[current] # discard if angle too sharp
-                # cos_angle = cosine_angle(prev,neighbor, current)
-                # if cos_angle > -0.2 and gap < 4 and math.dist(prev, neighbor) < 7:
-                # # if cos_angle > -0.2:
-                #     print("discarded")
-                #     continue
             # calculate the tentative g score for the neighbor
             tentative_g = g[current] + math.dist(current, neighbor)
             # check if we've already evaluated this neighbor
@@ -195,12 +219,6 @@ def astar(start, goal, edges, old_path):
                 # update the g and f scores for the neighbor
                 g[neighbor] = tentative_g
                 f[neighbor] = tentative_g + heuristic(neighbor, goal) + 800/gap
-
-                # if old_path != None:
-                #     d = distance_to_nearest_point(neighbor, old_path)
-                #     x = len(came_from) +1
-                #     f[neighbor] += d * 20 * math.exp(-1/5 * (x)) # adjust here
-
                 # update the path dictionary
                 came_from[neighbor] = (current, gap)
                 # add the neighbor to the open set
@@ -319,8 +337,6 @@ def cosine_angle(p1, p2, p3):
     return cosine
 
 
-
-
 def path_distance(points):
     # initialize total distance to 0
     total_distance = 0
@@ -395,7 +411,13 @@ def generate_circle_points(center, radius, num):
         circle_points.append((x, y))
     return circle_points
 
-def switch_plan(new_avg_gap, avg_gap, old_path, new_path, d):
-    return new_avg_gap > 1.05* avg_gap and len(old_path) >8 \
-    or d>5 \
-    or (path_distance(new_path) < 0.8*path_distance(old_path) and new_avg_gap > 0.95*avg_gap)
+def switch_plan(new_avg_gap, avg_gap, old_path, new_path, hd):
+    gap_size_hysteresis = params['switching_cond']['gap_size_hysteresis']
+    gap_size_sanity = params['switching_cond']['gap_size_sanity']
+    old_path_length = params['switching_cond']['old_path_length']
+    hausdorff_dist = params['switching_cond']['hausdorff_dist']
+    path_dist_scale = params['switching_cond']['path_dist_scale']
+
+    return new_avg_gap > gap_size_hysteresis* avg_gap and len(old_path) >old_path_length \
+    or hd>hausdorff_dist \
+    or (path_distance(new_path) < path_dist_scale*path_distance(old_path) and new_avg_gap > gap_size_sanity*avg_gap)
