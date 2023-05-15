@@ -6,12 +6,14 @@ angle_filter:
   max_angle: 0
 hallucinate_obstacles: False
 simulation: False
-resolution: 0.1
+low_resolution: 0.1
+high_resolution: 0.02
 switching_cond:
   gap_size_hysteresis: 1.05
   gap_size_sanity: 0.95
   old_path_length: 8
   hausdorff_dist: 5
   path_dist_scale: 0.8
+
 
 

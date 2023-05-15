@@ -2,6 +2,8 @@
 
 import rospy
 from sensor_msgs.msg import LaserScan
+from std_msgs.msg import Bool
+
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
 from message_filters import ApproximateTimeSynchronizer, Subscriber
@@ -22,7 +24,7 @@ from amrl_msgs.msg import VisualizationMsg, ColoredPoint2D
 
 from scipy.spatial.distance import directed_hausdorff as hd
 import yaml 
-
+import time 
 
 class ScanToGoal:
 
@@ -35,7 +37,6 @@ class ScanToGoal:
         self.path = None
         self.initial_yaw  = 0
         self.start = None
-        self.circle = None
 
 
         with open('config/params.yaml', 'r') as f:
@@ -46,7 +47,7 @@ class ScanToGoal:
         odom_sub = Subscriber('/enml_odometry', Odometry) # enml odom is frame odom
         self.path_pub = rospy.Publisher('/luisa_path', Path, queue_size=1)
         self.other_path_pub = rospy.Publisher('/other_path', Path, queue_size=1)
-
+        self.halt_pub = rospy.Publisher("/halt_robot", Bool)
         self.obstacle_viz = rospy.Publisher('obstacle_markers', Marker, queue_size=1)
         self.vertices_viz = rospy.Publisher('vor_vertices', Marker, queue_size=1)
         self.path_vertices = rospy.Publisher('path_vertices', Marker, queue_size=1)
@@ -67,9 +68,9 @@ class ScanToGoal:
         self.goal = (goal.pose.position.x, goal.pose.position.y)
 
     def scan_odom_callback(self, scan_msg, odom_msg):
-        x_scale = 10
+        x_scale = 1 / low_resolution
         # self.config["velodyne_transform"]["x"]
-        y_scale = 10
+        y_scale = 1 / low_resolution
         # self.config["velodyne_transform"]["y"]
         if not self.config["simulation"] and type(self.goal) == type(None):
             return
@@ -85,11 +86,12 @@ class ScanToGoal:
         if self.count ==0: # short term hack
             self.initial_yaw = yaw
             self.start = start
-            self.circle = generate_circle_points(start, 100, 100)
 
         # self.goal = None
         goal = (self.goal[0] * x_scale, self.goal[1] * y_scale) if not self.config["simulation"] else \
             (10*x_scale*math.cos(self.initial_yaw)+self.start[0],10*y_scale* math.sin(self.initial_yaw)+self.start[1])
+        
+        print("goal", goal)
 
         angle_min = scan_msg.angle_min
         increment = scan_msg.angle_increment
@@ -99,14 +101,14 @@ class ScanToGoal:
 
         points, self.point_map = translate_and_scale(ranges_to_coordinates(ranges, angle_min, increment, yaw), shift_x, shift_y, self.point_map)
 
-
         self.points += points
         self.points = list(set(self.points))
 
         # not sure how the ellipse will work on worlds where orientation seems flipped
-
-        circle_points = generate_circle_points(start, 100, 100)
-        tmp_points = [goal, start] + self.points + circle_points #+ self.circle
+        radius = 10 / low_resolution
+        num = 100
+        circle_points = generate_circle_points(start, radius, num)
+        tmp_points = [goal, start] + self.points + circle_points 
         # \ + generate_ellipse_arc(20, 15, math.pi/2+self.initial_yaw, 3*math.pi/2 + self.initial_yaw, 20)
         self.point_map.setdefault(goal, set()).add(goal)
         self.point_map.setdefault(start, set()).add(start)
@@ -125,7 +127,6 @@ class ScanToGoal:
         # self.path = closest_path(start, goal, map, old_path)
         # if self.path is None:
         result = astar(start, goal, map)
-        print("result: ", result)
 
         if result is None:
             self.points = []
@@ -134,6 +135,8 @@ class ScanToGoal:
             self.vertices_viz.publish(vertices)
             obs = self.make_viz_message(tmp_points, "white", self.count)
             self.obstacle_viz.publish(obs)
+            msg = Bool()
+            self.halt_pub.publish(msg)
             self.rate.sleep()
             return
         new_path, new_avg_gap = result
@@ -193,8 +196,8 @@ class ScanToGoal:
         visualization.ns = namespace 
         for point in points:
             p = ColoredPoint2D()
-            p.point.x = point[0]/10
-            p.point.y = point[1]/10
+            p.point.x = point[0] * low_resolution
+            p.point.y = point[1] * low_resolution
 
             p.color = color
 
@@ -231,8 +234,8 @@ class ScanToGoal:
         # Set marker points from input list of tuples
         for point in points:
             p = Point()
-            p.x = point[0]/10
-            p.y = point[1]/10
+            p.x = point[0] * low_resolution
+            p.y = point[1] * low_resolution
             p.z = 0
             marker.points.append(p)
         

@@ -19,6 +19,8 @@ with open("config/params.yaml", 'r') as stream:
     except yaml.YAMLError as e:
         print(e)
 
+low_resolution = params["low_resolution"]
+high_resolution = params["high_resolution"]
 
 def get_yaw(odom_msg):
     # Extract the yaw angle from the orientation quaternion
@@ -73,15 +75,15 @@ def translate_and_scale(points, shift_x, shift_y, map, discretization = 2):
         x, y = points[i]
         x += -0.055 + shift_x # hardcoded laser -> base_link
         y += shift_y
-        (a, b) = (round(x*10), round(y*10))
-        x = round(x  * 10 / discretization) *discretization   # scale by 10, discretize by 2, make it an int
-        y = round(y * 10 /discretization) *discretization
+        (a, b) = (int(round(x/high_resolution)), int(round(y/high_resolution)))
+        x = int(round(x  / (low_resolution * discretization)) *discretization)   # scale by 10, discretize by 2, make it an int
+        y = int(round(y / (low_resolution * discretization)) *discretization)
         points[i] = (x, y)
         map.setdefault((x, y), set()).add((a, b))
     return points, map
 
 def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shift_y, yaw):
-    start = (shift_x*10, shift_y*10)
+    start = (shift_x / low_resolution, shift_y / low_resolution)
     points = translate_and_scale(ranges_to_coordinates2(ranges, angle_min, increment, yaw), shift_x, shift_y)
     polygon = matplotlib.path.Path([start]+points)
     new_points = []
@@ -153,7 +155,7 @@ def get_edge_map(vor, start, goal, point_map, circle_points = set()):
         # print(pt)
         if map.get(pt) != None:
             # print("appended")
-            map[pt].append((goal, 10)) # basically this gap is always valid
+            map[pt].append((goal, 1 / high_resolution)) # basically this gap is always valid
     
     pts = vor.regions[vor.point_region[1]]
     map[start] = []
@@ -162,7 +164,7 @@ def get_edge_map(vor, start, goal, point_map, circle_points = set()):
             continue
         pt = (vertices[p][0], vertices[p][1])
         # print(pt)
-        map[start].append((pt, 10)) # this gap also always valid
+        map[start].append((pt, 1 / high_resolution)) # this gap also always valid
 
 
         
@@ -177,8 +179,8 @@ def create_ros_path(coords):
     for coord in coords:
         pose = PoseStamped()
         pose.header.frame_id = 'odom'  # Set the frame ID for the pose
-        pose.pose.position.x = coord[0]/10  # Set the x coordinate
-        pose.pose.position.y = coord[1]/10  # Set the y coordinate
+        pose.pose.position.x = coord[0] * low_resolution  # Set the x coordinate
+        pose.pose.position.y = coord[1] * low_resolution  # Set the y coordinate
         pose.pose.position.z = 0.0  # Set the z coordinate to zero
         pose.pose.orientation.x = 0.0  # Set the orientation to zero
         pose.pose.orientation.y = 0.0
@@ -210,7 +212,7 @@ def astar(start, goal, edges):
         # explore the neighbors of the current node
         for neighbor, gap in edges.get(current, []):
             # check if the neighbor is already in the closed set
-            if neighbor in closed_set or gap < 4.5: # 5 is hard limit
+            if neighbor in closed_set or gap < 0.45 / high_resolution: # 5 is hard limit
                 continue
             # calculate the tentative g score for the neighbor
             tentative_g = g[current] + math.dist(current, neighbor)
@@ -227,7 +229,7 @@ def astar(start, goal, edges):
     return None
 
 def reconstruct_path(start, goal, came_from):
-    min_gap = 100
+    min_gap = math.inf
     avg_gap = 0
     count = 0
     path = [goal]
@@ -235,7 +237,7 @@ def reconstruct_path(start, goal, came_from):
         node, gap = came_from[path[-1]]
         if gap < min_gap:
             min_gap = gap
-        if gap < 50:
+        if gap < 5 / high_resolution:
             avg_gap += gap
             count += 1
         path.append(node)
@@ -375,7 +377,7 @@ def copy_astar_path(start, goal, edges, old_path):
         # explore the neighbors of the current node
         for neighbor, gap in edges.get(current, []):
             # check if the neighbor is already in the closed set
-            if neighbor in closed_set or gap < 4.5: # 5 is hard limit
+            if neighbor in closed_set or gap < 0.45/high_resolution: # 5 is hard limit
                 continue
             # if current!=start:
                 # prev = came_from[current] # discard if angle too sharp
