@@ -2,18 +2,20 @@ range_filter: 5
 angle_filter:
   min_angle: -1.57
   max_angle: 1.57
+test_laser_transform: False
 laser_transform:
-  x_offset: -0.055
+  x_offset: 0.24
   y_offset: 0
 jackal_dim:
-  width: 0.45
+  width: 0.35
   length: 0.5
 max_gap_size: 5
 copy_astar_weight: 50
+astar_gap_weight: 80 # for high res
 
 hallucinate_obstacles: False
 simulation: False
-low_resolution: 0.05
+low_resolution: 0.1
 high_resolution: 0.02
 discretization: 1
 switching_cond:

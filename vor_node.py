@@ -91,7 +91,7 @@ class VoronoiGlobalPlanner:
         ranges = scan_msg.ranges
 
         if (self.config["simulation"]):
-            self.low_res_points = correct_obstacles(self.low_res_points, ranges, angle_min + yaw, increment, shift_x, shift_y, yaw)
+            self.low_res_points = correct_obstacles(self.low_res_points, ranges, angle_min, increment, shift_x, shift_y, yaw)
 
         points, self.high_res_map = translate_and_scale(ranges_to_coordinates(ranges, angle_min, increment, yaw), shift_x, shift_y, self.high_res_map)
 
@@ -144,9 +144,10 @@ class VoronoiGlobalPlanner:
             self.path = new_path
             luisa_path = create_ros_path(self.path)
 
-        # Publish the path message
-        self.path_pub.publish(luisa_path)
-        self.other_path_pub.publish(create_ros_path(new_path))
+        if not config["test_laser_transform"]:
+            # Publish the path message
+            self.path_pub.publish(luisa_path)
+            self.other_path_pub.publish(create_ros_path(new_path))
 
 
         # clear viz

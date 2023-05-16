@@ -86,7 +86,7 @@ def translate_and_scale(points, shift_x, shift_y, map):
 
 def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shift_y, yaw):
     start = (shift_x / LOW_RESOLUTION, shift_y / LOW_RESOLUTION)
-    points = translate_and_scale(ranges_to_coordinates_for_clearing(ranges, angle_min, increment, yaw), shift_x, shift_y)
+    points, _ = translate_and_scale(ranges_to_coordinates_for_clearing(ranges, angle_min, increment, yaw), shift_x, shift_y, {})
     polygon = matplotlib.path.Path([start]+points)
     new_points = []
     for p in old_obstacles:
@@ -214,7 +214,7 @@ def astar(start, goal, edges):
             if neighbor not in g or tentative_g < g[neighbor]:
                 # update the g and f scores for the neighbor
                 g[neighbor] = tentative_g
-                f[neighbor] = tentative_g + heuristic(neighbor, goal) + 800/gap
+                f[neighbor] = tentative_g + heuristic(neighbor, goal) + config['astar_gap_weight']/(gap * HIGH_RESOLUTION)
                 # update the path dictionary
                 came_from[neighbor] = (current, gap)
                 # add the neighbor to the open set
