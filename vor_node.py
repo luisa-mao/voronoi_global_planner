@@ -25,7 +25,7 @@ import time
 
 class VoronoiGlobalPlanner:
 
-    def __init__(self):
+    def __init__(self, yaml_path):
         rospy.init_node('voronoi_global_planner')
         self.count = 0
         self.points = []
@@ -36,21 +36,21 @@ class VoronoiGlobalPlanner:
         self.start = None
 
 
-        with open('config/params.yaml', 'r') as f:
+        with open(yaml_path, 'r') as f:
             self.config = yaml.safe_load(f)
 
         # Create subscribers and publishers
-        scan_sub = Subscriber('/front/scan', LaserScan) if self.config["simulation"] else Subscriber('/scan', LaserScan)
-        odom_sub = Subscriber('/enml_odometry', Odometry) # enml odom is frame odom
-        self.path_pub = rospy.Publisher('/luisa_path', Path, queue_size=1)
-        self.other_path_pub = rospy.Publisher('/other_path', Path, queue_size=1)
-        self.halt_pub = rospy.Publisher("/halt_robot", Bool)
-        self.obstacle_viz = rospy.Publisher('obstacle_markers', Marker, queue_size=1)
-        self.vertices_viz = rospy.Publisher('vor_vertices', Marker, queue_size=1)
-        self.path_vertices = rospy.Publisher('path_vertices', Marker, queue_size=1)
-        self.goal_subscriber = rospy.Subscriber('/move_base_simple/goal', PoseStamped, self.get_goal)
+        scan_sub = Subscriber(self.config["topics"]["scan_topic_sim"], LaserScan) if self.config["simulation"] else Subscriber(self.config["topics"]["scan_topic"], LaserScan)
+        odom_sub = Subscriber(self.config["topics"]["enml_topic"], Odometry) # enml odom is frame odom
+        self.path_pub = rospy.Publisher(self.config["topics"]["path"], Path, queue_size=1)
+        self.other_path_pub = rospy.Publisher(self.config["topics"]["other_path"], Path, queue_size=1)
+        self.halt_pub = rospy.Publisher(self.config["topics"]["halt"], Bool)
+        self.obstacle_viz = rospy.Publisher(self.config["topics"]["obstacle_viz"], Marker, queue_size=1)
+        self.vertices_viz = rospy.Publisher(self.config["topics"]["vertices_viz"], Marker, queue_size=1)
+        self.path_vertices = rospy.Publisher(self.config["topics"]["path_vertices"], Marker, queue_size=1)
+        self.goal_subscriber = rospy.Subscriber(self.config["topics"]["goal"], PoseStamped, self.get_goal)
 
-        self.webviz_viz_publisher = rospy.Publisher("/visualization", VisualizationMsg, queue_size=1)
+        self.webviz_viz_publisher = rospy.Publisher(self.config["topics"]["webviz"], VisualizationMsg, queue_size=1)
 
         self.goal = None
 
@@ -65,14 +65,11 @@ class VoronoiGlobalPlanner:
         self.goal = (goal.pose.position.x, goal.pose.position.y)
 
     def scan_odom_callback(self, scan_msg, odom_msg):
-        x_scale = 1 / low_resolution
-        # self.config["velodyne_transform"]["x"]
-        y_scale = 1 / low_resolution
-        # self.config["velodyne_transform"]["y"]
+        x_scale = 1 / LOW_RESOLUTION
+        y_scale = 1 / LOW_RESOLUTION
         if not self.config["simulation"] and type(self.goal) == type(None):
             return
         print("scan odom callback")
-        # print(scan_msg.header)
 
         # for base_link -> odom transform
         yaw = get_yaw(odom_msg)
@@ -84,7 +81,6 @@ class VoronoiGlobalPlanner:
             self.initial_yaw = yaw
             self.start = start
 
-        # self.goal = None
         goal = (self.goal[0] * x_scale, self.goal[1] * y_scale) if not self.config["simulation"] else \
             (10*x_scale*math.cos(self.initial_yaw)+self.start[0],10*y_scale* math.sin(self.initial_yaw)+self.start[1])
         
@@ -103,27 +99,21 @@ class VoronoiGlobalPlanner:
         self.points = list(set(self.points))
 
         # not sure how the ellipse will work on worlds where orientation seems flipped
-        radius = 10 / low_resolution
-        num = 100
+        radius = self.config["planning_horizon"] / LOW_RESOLUTION
+        num = self.config["circle_num_points"]
+
         circle_points = generate_circle_points(start, radius, num)
         tmp_points = [goal, start] + self.points + circle_points 
-        # \ + generate_ellipse_arc(20, 15, math.pi/2+self.initial_yaw, 3*math.pi/2 + self.initial_yaw, 20)
         self.point_map.setdefault(goal, set()).add(goal)
         self.point_map.setdefault(start, set()).add(start)
 
 
-        # for elem in tmp_points:
-        #     assert elem in self.point_map.keys(), f"{elem} is not a key in the dictionary"
-
-
         vor = Voronoi(tmp_points)
 
-        # map = get_edge_map2(vor, start)
         map = get_edge_map(vor, start, goal, self.point_map, circle_points)
 
         old_path = self.path
-        # self.path = closest_path(start, goal, map, old_path)
-        # if self.path is None:
+
         result = astar(start, goal, map)
 
         if result is None:
@@ -148,9 +138,6 @@ class VoronoiGlobalPlanner:
                 self.path = new_path
             luisa_path = create_ros_path(self.path)
 
-            # luisa_path = create_ros_path(old_path)
-        # if False: # if two valid paths, choose the shorter one
-        #     pass
 
         else:
             self.path = new_path
@@ -162,22 +149,22 @@ class VoronoiGlobalPlanner:
 
 
         # clear viz
-        marker = Marker()
-        marker.action = 3
-        self.obstacle_viz.publish(marker)
-        marker.action = 3
-        self.vertices_viz.publish(marker)
-        marker.action = 3
-        # self.path_vertices.publish(marker)
+        if self.config['pub_rviz']:
+            marker = Marker()
+            marker.action = 3
+            self.obstacle_viz.publish(marker)
+            marker.action = 3
+            self.vertices_viz.publish(marker)
+            marker.action = 3
 
-        # publish viz
-        obs = self.make_viz_message(tmp_points, "white", self.count)
-        self.obstacle_viz.publish(obs)
-        vertices = self.make_viz_message(vor.vertices, "blue", self.count)
-        self.vertices_viz.publish(vertices)
+            # publish rviz
+            obs = self.make_viz_message(tmp_points, "white", self.count)
+            self.obstacle_viz.publish(obs)
+            vertices = self.make_viz_message(vor.vertices, "blue", self.count)
+            self.vertices_viz.publish(vertices)
 
         path_vertices = self.make_viz_message(self.path, "blue", self.count)
-        
+            
         # publish to webviz
         self.publish_message(tmp_points, 16711680, "vertices")
         self.publish_message(self.path, 65280, "vor_path")
@@ -194,8 +181,8 @@ class VoronoiGlobalPlanner:
         visualization.ns = namespace 
         for point in points:
             p = ColoredPoint2D()
-            p.point.x = point[0] * low_resolution
-            p.point.y = point[1] * low_resolution
+            p.point.x = point[0] * LOW_RESOLUTION
+            p.point.y = point[1] * LOW_RESOLUTION
 
             p.color = color
 
@@ -232,8 +219,8 @@ class VoronoiGlobalPlanner:
         # Set marker points from input list of tuples
         for point in points:
             p = Point()
-            p.x = point[0] * low_resolution
-            p.y = point[1] * low_resolution
+            p.x = point[0] * LOW_RESOLUTION
+            p.y = point[1] * LOW_RESOLUTION
             p.z = 0
             marker.points.append(p)
         
@@ -242,6 +229,6 @@ class VoronoiGlobalPlanner:
 
 if __name__ == '__main__':
     try:
-        VoronoiGlobalPlanner()
+        VoronoiGlobalPlanner(yaml_path)
     except rospy.ROSInterruptException:
         pass

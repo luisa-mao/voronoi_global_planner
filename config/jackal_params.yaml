@@ -1,0 +1,41 @@
+range_filter: 5
+angle_filter:
+  min_angle: -1.57
+  max_angle: 1.57
+laser_transform:
+  x_offset: -0.055
+  y_offset: 0
+jackal_dim:
+  width: 0.45
+  length: 0.5
+max_gap_size: 5
+copy_astar_weight: 50
+
+hallucinate_obstacles: False
+simulation: False
+low_resolution: 0.1
+high_resolution: 0.02
+switching_cond:
+  gap_size_hysteresis: 1.05
+  gap_size_sanity: 0.95
+  old_path_length: 8
+  hausdorff_dist: 5
+  path_dist_scale: 0.8
+planning_horizon: 10
+circle_num_points: 100
+pub_rviz: False
+topics:
+  scan_topic: /velodyne_2dscan
+  scan_topic_sim: /front/scan
+  enml_topic: /enml_odometry
+  path: /luisa_path
+  other_path: /other_path
+  halt: /halt_robot
+  obstacle_viz: obstacle_markers
+  vertices_viz: vor_vertices
+  path_vertices: path_vertices
+  goal: /move_base_simple/goal
+  webviz: /visualization
+
+
+
