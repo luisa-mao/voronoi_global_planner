@@ -58,15 +58,15 @@ def ranges_to_coordinates2(ranges, angle_min, angle_increment, yaw):
     coords = []
     for i in range(len(ranges)):
         angle = angle_min + i * angle_increment
-        if angle < -2.3561899662017822 or angle > 2.3561899662017822:
+        if angle < -1.57 or angle > 1.57:
             continue
         if not math.isinf(ranges[i]):
-            x = (ranges[i]+.005) * math.cos(angle)
-            y = (ranges[i]+.005) * math.sin(angle)
+            x = (ranges[i]+.005) * math.cos(angle + yaw)
+            y = (ranges[i]+.005) * math.sin(angle + yaw)
             coords.append((x, y))
         else:
-            x = 5 * math.cos(angle)
-            y = 5 * math.sin(angle)
+            x = 5 * math.cos(angle + yaw)
+            y = 5 * math.sin(angle + yaw)
             coords.append((x, y))
     return coords
 

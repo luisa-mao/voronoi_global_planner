@@ -8,9 +8,6 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
 from message_filters import ApproximateTimeSynchronizer, Subscriber
 from scipy.spatial import Voronoi, voronoi_plot_2d
-import matplotlib
-# matplotlib.use('Agg')
-# from matplotlib import pyplot as plt
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from vor_utils import *
 from visualization_msgs.msg import Marker
@@ -26,10 +23,10 @@ from scipy.spatial.distance import directed_hausdorff as hd
 import yaml 
 import time 
 
-class ScanToGoal:
+class VoronoiGlobalPlanner:
 
     def __init__(self):
-        rospy.init_node('scan_to_goal')
+        rospy.init_node('voronoi_global_planner')
         self.count = 0
         self.points = []
         self.point_map = {}
@@ -96,6 +93,7 @@ class ScanToGoal:
         angle_min = scan_msg.angle_min
         increment = scan_msg.angle_increment
         ranges = scan_msg.ranges
+
         if (self.config["simulation"]):
             self.points = correct_obstacles(self.points, ranges, angle_min + yaw, increment, shift_x, shift_y, yaw)
 
@@ -244,6 +242,6 @@ class ScanToGoal:
 
 if __name__ == '__main__':
     try:
-        ScanToGoal()
+        VoronoiGlobalPlanner()
     except rospy.ROSInterruptException:
         pass
