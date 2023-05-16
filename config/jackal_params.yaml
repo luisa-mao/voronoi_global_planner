@@ -13,8 +13,9 @@ copy_astar_weight: 50
 
 hallucinate_obstacles: False
 simulation: False
-low_resolution: 0.1
+low_resolution: 0.05
 high_resolution: 0.02
+discretization: 1
 switching_cond:
   gap_size_hysteresis: 1.05
   gap_size_sanity: 0.95

@@ -71,7 +71,8 @@ def ranges_to_coordinates_for_clearing(ranges, angle_min, angle_increment, yaw):
             coords.append((x, y))
     return coords
 
-def translate_and_scale(points, shift_x, shift_y, map, discretization = 2):
+def translate_and_scale(points, shift_x, shift_y, map):
+    discretization = config["discretization"]
     for i in range(len(points)):
         x, y = points[i]
         x += config["laser_transform"]["x_offset"] + shift_x # hardcoded laser -> base_link

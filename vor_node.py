@@ -28,8 +28,8 @@ class VoronoiGlobalPlanner:
     def __init__(self, yaml_path):
         rospy.init_node('voronoi_global_planner')
         self.count = 0
-        self.points = []
-        self.point_map = {}
+        self.low_res_points = []
+        self.high_res_map = {}
 
         self.path = None
         self.initial_yaw  = 0
@@ -91,33 +91,34 @@ class VoronoiGlobalPlanner:
         ranges = scan_msg.ranges
 
         if (self.config["simulation"]):
-            self.points = correct_obstacles(self.points, ranges, angle_min + yaw, increment, shift_x, shift_y, yaw)
+            self.low_res_points = correct_obstacles(self.low_res_points, ranges, angle_min + yaw, increment, shift_x, shift_y, yaw)
 
-        points, self.point_map = translate_and_scale(ranges_to_coordinates(ranges, angle_min, increment, yaw), shift_x, shift_y, self.point_map)
+        points, self.high_res_map = translate_and_scale(ranges_to_coordinates(ranges, angle_min, increment, yaw), shift_x, shift_y, self.high_res_map)
 
-        self.points += points
-        self.points = list(set(self.points))
+        self.low_res_points += points
+        self.low_res_points = list(set(self.low_res_points))
 
         # not sure how the ellipse will work on worlds where orientation seems flipped
         radius = self.config["planning_horizon"] / LOW_RESOLUTION
         num = self.config["circle_num_points"]
 
         circle_points = generate_circle_points(start, radius, num)
-        tmp_points = [goal, start] + self.points + circle_points 
-        self.point_map.setdefault(goal, set()).add(goal)
-        self.point_map.setdefault(start, set()).add(start)
+        tmp_points = [goal, start] + self.low_res_points + circle_points 
+        self.high_res_map.setdefault(goal, set()).add(goal)
+        self.high_res_map.setdefault(start, set()).add(start)
 
 
         vor = Voronoi(tmp_points)
 
-        map = get_edge_map(vor, start, goal, self.point_map, circle_points)
+        map = get_edge_map(vor, start, goal, self.high_res_map, circle_points)
 
         old_path = self.path
 
         result = astar(start, goal, map)
 
         if result is None:
-            self.points = []
+            self.low_res_points.clear()
+            self.high_res_map.clear()
             self.path = None
             vertices = self.make_viz_message(vor.vertices, "blue", self.count)
             self.vertices_viz.publish(vertices)
