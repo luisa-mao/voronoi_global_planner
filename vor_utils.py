@@ -52,7 +52,7 @@ def ranges_to_coordinates(ranges, angle_min, angle_increment, yaw):
             coords.append((x, y))
     return coords
 
-def ranges_to_coordinates_for_clearing(ranges, angle_min, angle_increment, yaw):
+def ranges_to_coordinates_for_clearing(ranges, angle_min, angle_increment, yaw, epsilon=0.005):
     """
     Converts a list of LaserScan ranges to x-y coordinates.
     """
@@ -66,8 +66,10 @@ def ranges_to_coordinates_for_clearing(ranges, angle_min, angle_increment, yaw):
             y = (ranges[i]+.005) * math.sin(angle + yaw)
             coords.append((x, y))
         else:
-            x = config['range_filter'] * math.cos(angle + yaw)
-            y = config['range_filter'] * math.sin(angle + yaw)
+            # x = config['range_filter'] * math.cos(angle + yaw)
+            # y = config['range_filter'] * math.sin(angle + yaw)
+            x = epsilon * math.cos(angle + yaw)
+            y = epsilon * math.sin(angle + yaw)
             coords.append((x, y))
     return coords
 
@@ -86,7 +88,7 @@ def translate_and_scale(points, shift_x, shift_y, map):
 
 def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shift_y, yaw):
     start = (shift_x / LOW_RESOLUTION, shift_y / LOW_RESOLUTION)
-    points = translate_and_scale(ranges_to_coordinates_for_clearing(ranges, angle_min, increment, yaw), shift_x, shift_y)
+    points, _ = translate_and_scale(ranges_to_coordinates_for_clearing(ranges, angle_min, increment, yaw), shift_x, shift_y, {})
     polygon = matplotlib.path.Path([start]+points)
     new_points = []
     for p in old_obstacles:
@@ -109,8 +111,7 @@ def get_gap(point_map, point1, point2):
     return get_min_dist(points1, points2)
 
 
-def get_edge_map(vor, start, goal, point_map, circle_points = set()):
-    circle_points = set(circle_points)
+def get_edge_map(vor, start, goal, point_map):
     map = {}
     ridge_points = vor.ridge_points
     edges = vor.ridge_vertices

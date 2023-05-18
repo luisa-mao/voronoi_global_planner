@@ -110,7 +110,7 @@ class VoronoiGlobalPlanner:
 
         vor = Voronoi(tmp_points)
 
-        map = get_edge_map(vor, start, goal, self.high_res_map, circle_points)
+        map = get_edge_map(vor, start, goal, self.high_res_map)
 
         old_path = self.path
 
