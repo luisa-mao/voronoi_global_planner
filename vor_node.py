@@ -90,8 +90,8 @@ class VoronoiGlobalPlanner:
         increment = scan_msg.angle_increment
         ranges = scan_msg.ranges
 
-        if (self.config["simulation"]):
-            self.low_res_points = correct_obstacles(self.low_res_points, ranges, angle_min + yaw, increment, shift_x, shift_y, yaw)
+        # if (self.config["simulation"]):
+        self.low_res_points = correct_obstacles(self.low_res_points, ranges, angle_min + yaw, increment, shift_x, shift_y, yaw)
 
         points, self.high_res_map = translate_and_scale(ranges_to_coordinates(ranges, angle_min, increment, yaw), shift_x, shift_y, self.high_res_map)
 
