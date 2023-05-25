@@ -8,6 +8,7 @@ from geometry_msgs.msg import PoseStamped
 import scipy.interpolate as interpolate
 from scipy.spatial.distance import directed_hausdorff
 import matplotlib
+import matplotlib.path
 from scipy.spatial.distance import cdist
 import yaml
 
