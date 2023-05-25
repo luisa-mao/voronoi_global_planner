@@ -4,7 +4,7 @@ angle_filter:
   max_angle: 1.57
 test_laser_transform: False
 laser_transform:
-  x_offset: 0.24
+  x_offset: 0.0762
   y_offset: 0
 jackal_dim:
   width: 0.35
@@ -12,7 +12,7 @@ jackal_dim:
 max_gap_size: 5
 copy_astar_weight: 50
 astar_gap_weight: 80 # for high res
-
+clearing: True
 hallucinate_obstacles: False
 simulation: False
 low_resolution: 0.1

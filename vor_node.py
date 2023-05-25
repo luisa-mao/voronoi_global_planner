@@ -90,8 +90,8 @@ class VoronoiGlobalPlanner:
         increment = scan_msg.angle_increment
         ranges = scan_msg.ranges
 
-        if (self.config["simulation"]):
-            self.low_res_points = correct_obstacles(self.low_res_points, ranges, angle_min, increment, shift_x, shift_y, yaw)
+        if (self.config["clearing"]): # test clearing
+            self.low_res_points, self.high_res_map = correct_obstacles(self.low_res_points, ranges, angle_min, increment, shift_x, shift_y, yaw, self.high_res_map)
 
         points, self.high_res_map = translate_and_scale(ranges_to_coordinates(ranges, angle_min, increment, yaw), shift_x, shift_y, self.high_res_map)
 
@@ -168,8 +168,8 @@ class VoronoiGlobalPlanner:
         path_vertices = self.make_viz_message(self.path, "blue", self.count)
             
         # publish to webviz
-        self.publish_message(tmp_points, 16711680, "vertices")
-        self.publish_message(self.path, 65280, "vor_path")
+        self.publish_message(tmp_points, 16711680, "vertices")  # red
+        self.publish_message(self.path, 65280, "vor_path")   # green
 
         self.path_vertices.publish(path_vertices)
 

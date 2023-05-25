@@ -65,9 +65,12 @@ def ranges_to_coordinates_for_clearing(ranges, angle_min, angle_increment, yaw):
             x = (ranges[i]+.005) * math.cos(angle + yaw)
             y = (ranges[i]+.005) * math.sin(angle + yaw)
             coords.append((x, y))
-        else:
-            x = config['range_filter'] * math.cos(angle + yaw)
-            y = config['range_filter'] * math.sin(angle + yaw)
+        else: # if infinity
+            # x = config['range_filter'] * math.cos(angle + yaw)
+            # y = config['range_filter'] * math.sin(angle + yaw)
+            x = .005 * math.cos(angle + yaw)
+            y = .005 * math.sin(angle + yaw)
+            
             coords.append((x, y))
     return coords
 
@@ -84,7 +87,7 @@ def translate_and_scale(points, shift_x, shift_y, map):
         map.setdefault((x, y), set()).add((a, b))
     return points, map
 
-def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shift_y, yaw):
+def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shift_y, yaw, map):
     start = (shift_x / LOW_RESOLUTION, shift_y / LOW_RESOLUTION)
     points, _ = translate_and_scale(ranges_to_coordinates_for_clearing(ranges, angle_min, increment, yaw), shift_x, shift_y, {})
     polygon = matplotlib.path.Path([start]+points)
@@ -92,7 +95,9 @@ def correct_obstacles(old_obstacles, ranges, angle_min, increment, shift_x, shif
     for p in old_obstacles:
         if not polygon.contains_point(p):
             new_points.append(p)
-    return new_points
+        else:
+            map.pop(p)
+    return new_points, map
 
 def get_min_dist(points1, points2):
     min_dist = 100000000
